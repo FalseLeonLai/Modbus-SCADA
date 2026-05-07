@@ -1,0 +1,36 @@
+# .NET Build outputs
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
+*.sln.iml
+
+# NuGet
+packages/
+*.nupkg
+
+# Test results
+TestResults/
+
+# dotnet tools
+.dotnet/
+
+# Windows thumbnail cache
+Thumbs.db
+
+.fake
