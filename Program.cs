@@ -4,11 +4,11 @@
 // ============================================================
 
 using System.Text;
-using Modbus上位机.Forms;
-using Modbus上位机.Helpers;
-using Modbus上位机.Services;
+using ModbusSCADA.Forms;
+using ModbusSCADA.Helpers;
+using ModbusSCADA.Services;
 
-namespace Modbus上位机;
+namespace ModbusSCADA;
 
 /// <summary>
 /// 应用程序入口类

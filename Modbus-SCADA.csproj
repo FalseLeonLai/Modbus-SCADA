@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ModbusSCADA</RootNamespace>
     <NeutralLanguage>zh-CN</NeutralLanguage>
     <!-- 全局强制 UTF-8 编码 -->
     <SatelliteResourceLanguages>zh-CN;en;ru</SatelliteResourceLanguages>
@@ -13,7 +14,7 @@
 
   <ItemGroup>
     <!-- Modbus TCP 通信库 -->
-    <PackageReference Include="NModbus4" Version="2.1.0" />
+    <PackageReference Include="NModbus" Version="3.0.81" />
     <!-- JSON 序列化 -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
@@ -27,16 +28,9 @@
 
   <!-- RESX 资源文件 -->
   <ItemGroup>
-    <EmbeddedResource Update="Resources\Strings.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <EmbeddedResource Update="Resources\Strings.en.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-    </EmbeddedResource>
-    <EmbeddedResource Update="Resources\Strings.ru.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-    </EmbeddedResource>
+    <EmbeddedResource Update="Resources\Strings.resx" />
+    <EmbeddedResource Update="Resources\Strings.en.resx" />
+    <EmbeddedResource Update="Resources\Strings.ru.resx" />
   </ItemGroup>
 
 </Project>

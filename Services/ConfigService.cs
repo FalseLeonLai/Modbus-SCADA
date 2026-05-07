@@ -5,9 +5,9 @@
 // ============================================================
 
 using Newtonsoft.Json;
-using Modbus上位机.Models;
+using ModbusSCADA.Models;
 
-namespace Modbus上位机.Services;
+namespace ModbusSCADA.Services;
 
 /// <summary>
 /// 配置服务 — 负责将连接设置和变量列表保存到 JSON 文件，或从 JSON 文件加载

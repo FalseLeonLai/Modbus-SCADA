@@ -1,14 +1,14 @@
 // ============================================================
 // 文件: ModbusService.cs
 // 作用: Modbus TCP 通信核心 — 连接、断开、读写寄存器、后台轮询
-// 依赖: NModbus4 NuGet 包
+// 依赖: NModbus NuGet 包
 // ============================================================
 
 using System.Net.Sockets;
-using Modbus.Device;
-using Modbus上位机.Models;
+using NModbus;
+using ModbusSCADA.Models;
 
-namespace Modbus上位机.Services;
+namespace ModbusSCADA.Services;
 
 /// <summary>
 /// Modbus TCP 服务 — 封装与 PLC/设备的通信操作
@@ -56,8 +56,9 @@ public class ModbusService : IDisposable
             await _tcpClient.ConnectAsync(settings.IPAddress, settings.Port);
 
             // 在 TCP 连接上创建 Modbus 主站
-            // ModbusIpMaster.CreateIp 会通过 TCP 发送/接收 Modbus 报文
-            _master = ModbusIpMaster.CreateIp(_tcpClient);
+            // NModbus 的 ModbusFactory 会通过 TCP 发送/接收 Modbus 报文
+            var factory = new ModbusFactory();
+            _master = factory.CreateMaster(_tcpClient);
 
             // 设置超时
             _tcpClient.ReceiveTimeout = settings.Timeout;

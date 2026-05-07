@@ -3,7 +3,7 @@
 // 作用: 定义 Modbus TCP 连接参数，支持 JSON 保存与加载
 // ============================================================
 
-namespace Modbus上位机.Models;
+namespace ModbusSCADA.Models;
 
 /// <summary>
 /// 连接设置 — Modbus TCP 设备连接所需的所有参数

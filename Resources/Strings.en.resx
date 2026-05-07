@@ -26,6 +26,7 @@
   <data name="DeleteVariable" xml:space="preserve"><value>Delete</value></data>
   <data name="ImportVariables" xml:space="preserve"><value>Import</value></data>
   <data name="ExportVariables" xml:space="preserve"><value>Export</value></data>
+  <data name="Refresh" xml:space="preserve"><value>Refresh</value></data>
   <data name="VariableOperation" xml:space="preserve"><value>Variable Operation</value></data>
   <data name="SelectedVariable" xml:space="preserve"><value>Selected</value></data>
   <data name="CurrentValue" xml:space="preserve"><value>Current Value</value></data>

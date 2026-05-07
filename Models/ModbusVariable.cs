@@ -4,7 +4,7 @@
 // 适用: 完全不懂英文和C#的小白 — 每个英文名都有中文注释
 // ============================================================
 
-namespace Modbus上位机.Models;
+namespace ModbusSCADA.Models;
 
 /// <summary>
 /// Modbus 数据类型 — 决定读写权限和使用的功能码

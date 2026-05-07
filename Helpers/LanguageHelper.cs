@@ -6,7 +6,7 @@
 
 using System.Globalization;
 
-namespace Modbus上位机.Helpers;
+namespace ModbusSCADA.Helpers;
 
 /// <summary>
 /// 语言助手 — 管理多语言切换和当前语言状态

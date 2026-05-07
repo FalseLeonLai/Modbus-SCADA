@@ -28,6 +28,7 @@
   <data name="DeleteVariable" xml:space="preserve"><value>删除变量</value></data>
   <data name="ImportVariables" xml:space="preserve"><value>导入</value></data>
   <data name="ExportVariables" xml:space="preserve"><value>导出</value></data>
+  <data name="Refresh" xml:space="preserve"><value>刷新</value></data>
   <!-- 变量操作区域 -->
   <data name="VariableOperation" xml:space="preserve"><value>变量操作</value></data>
   <data name="SelectedVariable" xml:space="preserve"><value>选中变量</value></data>

@@ -5,10 +5,12 @@
 // 说明: 正常情况下由 Visual Studio 自动生成，本项目手动维护
 // ============================================================
 
+#nullable enable
+
 using System.Resources;
 using System.Globalization;
 
-namespace Modbus上位机.Resources;
+namespace ModbusSCADA.Resources;
 
 /// <summary>
 /// 多语言字符串资源访问器
@@ -24,11 +26,11 @@ internal static class Strings
         {
             if (_resourceManager == null)
             {
-                // "Modbus上位机.Resources.Strings" = 命名空间.目录名.文件名
+                // "ModbusSCADA.Resources.Strings" = 命名空间.目录名.文件名
                 // 对应 Resources/Strings.resx
                 // Assembly 对象用于找到嵌入的资源
                 _resourceManager = new ResourceManager(
-                    "Modbus上位机.Resources.Strings",
+                    "ModbusSCADA.Resources.Strings",
                     typeof(Strings).Assembly);
             }
             return _resourceManager;
@@ -59,6 +61,7 @@ internal static class Strings
     internal static string DeleteVariable => GetString("DeleteVariable");
     internal static string ImportVariables => GetString("ImportVariables");
     internal static string ExportVariables => GetString("ExportVariables");
+    internal static string Refresh => GetString("Refresh");
 
     // ---------- 变量操作 ----------
     internal static string VariableOperation => GetString("VariableOperation");

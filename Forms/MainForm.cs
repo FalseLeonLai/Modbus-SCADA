@@ -5,12 +5,12 @@
 // ============================================================
 
 using System.ComponentModel;
-using Modbus上位机.Models;
-using Modbus上位机.Helpers;
-using Modbus上位机.Resources;
-using Modbus上位机.Services;
+using ModbusSCADA.Models;
+using ModbusSCADA.Helpers;
+using ModbusSCADA.Resources;
+using ModbusSCADA.Services;
 
-namespace Modbus上位机.Forms;
+namespace ModbusSCADA.Forms;
 
 /// <summary>
 /// 主窗口 — 上位机核心界面
@@ -35,24 +35,33 @@ public partial class MainForm : Form
     // ================================================================
 
     // 顶部工具栏
-    private ToolStrip _topToolbar;
-    private ToolStripButton _btnConnect, _btnDisconnect, _btnConfigConn;
-    private ToolStripLabel _lblStatusText, _lblStatusValue;
-    private ToolStripComboBox _cboLanguage;
+    private ToolStrip _topToolbar = null!;
+    private ToolStripButton _btnConnect = null!;
+    private ToolStripButton _btnDisconnect = null!;
+    private ToolStripButton _btnConfigConn = null!;
+    private ToolStripLabel _lblStatusText = null!;
+    private ToolStripLabel _lblStatusValue = null!;
+    private ToolStripLabel _lblLanguage = null!;
+    private ToolStripComboBox _cboLanguage = null!;
 
     // 变量监视表格
-    private DataGridView _dgvVariables;
+    private DataGridView _dgvVariables = null!;
 
     // 变量操作面板（底部）
-    private GroupBox _grpOperation;
-    private Label _lblSelectedInfo;
-    private Label _lblWriteValue;
-    private TextBox _txtWriteValue;
-    private Button _btnWrite;
+    private GroupBox _grpOperation = null!;
+    private Label _lblSelectedInfo = null!;
+    private Label _lblWriteValue = null!;
+    private TextBox _txtWriteValue = null!;
+    private Button _btnWrite = null!;
 
     // 底部工具栏
-    private ToolStrip _bottomToolbar;
-    private ToolStripButton _btnAdd, _btnEdit, _btnDelete, _btnImport, _btnExport, _btnRefresh;
+    private ToolStrip _bottomToolbar = null!;
+    private ToolStripButton _btnAdd = null!;
+    private ToolStripButton _btnEdit = null!;
+    private ToolStripButton _btnDelete = null!;
+    private ToolStripButton _btnImport = null!;
+    private ToolStripButton _btnExport = null!;
+    private ToolStripButton _btnRefresh = null!;
 
     /// <summary>
     /// 构造函数 — 初始化主窗口
@@ -79,35 +88,50 @@ public partial class MainForm : Form
     /// </summary>
     private void InitializeMainForm()
     {
+        SuspendLayout();
+
         // ---------- 窗口属性 ----------
         Text = Strings.AppTitle;
         Size = new Size(1100, 650);
+        MinimumSize = new Size(900, 560);
         StartPosition = FormStartPosition.CenterScreen;
-        Font = new Font("Microsoft YaHei", 9F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        Font = new Font("Microsoft YaHei UI", 9F);
 
         // ---------- 顶部工具栏 ----------
-        _topToolbar = new ToolStrip { GripStyle = ToolStripGripStyle.Hidden };
+        _topToolbar = new ToolStrip
+        {
+            GripStyle = ToolStripGripStyle.Hidden,
+            AutoSize = false,
+            Height = 42,
+            Padding = new Padding(8, 4, 8, 4),
+            RenderMode = ToolStripRenderMode.System
+        };
 
-        _btnConnect = new ToolStripButton(Strings.Connect) { ImageScaling = ToolStripItemImageScaling.None };
+        _btnConnect = CreateToolbarButton(Strings.Connect);
         _btnConnect.Click += BtnConnect_Click;
 
-        _btnDisconnect = new ToolStripButton(Strings.Disconnect) { ImageScaling = ToolStripItemImageScaling.None, Enabled = false };
+        _btnDisconnect = CreateToolbarButton(Strings.Disconnect);
+        _btnDisconnect.Enabled = false;
         _btnDisconnect.Click += BtnDisconnect_Click;
 
-        _btnConfigConn = new ToolStripButton(Strings.ConfigConnection) { ImageScaling = ToolStripItemImageScaling.None };
+        _btnConfigConn = CreateToolbarButton(Strings.ConfigConnection);
         _btnConfigConn.Click += BtnConfigConn_Click;
 
-        _lblStatusText = new ToolStripLabel($"{Strings.ConnectionStatus}: ");
+        _lblStatusText = CreateToolbarLabel($"{Strings.ConnectionStatus}: ");
         _lblStatusValue = new ToolStripLabel(Strings.NotConnected)
         {
             ForeColor = Color.Red,
-            Font = new Font("Microsoft YaHei", 9F, FontStyle.Bold)
+            Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold),
+            Margin = new Padding(4, 0, 8, 0)
         };
 
         _cboLanguage = new ToolStripComboBox
         {
             DropDownStyle = ComboBoxStyle.DropDownList,
-            Width = 90
+            Width = 110,
+            AutoSize = false,
+            Margin = new Padding(4, 0, 0, 0)
         };
         foreach (var lang in LanguageHelper.SupportedLanguages)
         {
@@ -117,7 +141,7 @@ public partial class MainForm : Form
         var currentDisplay = LanguageHelper.GetCurrentLanguageDisplay();
         for (int i = 0; i < _cboLanguage.Items.Count; i++)
         {
-            if (_cboLanguage.Items[i].ToString() == currentDisplay)
+            if (_cboLanguage.Items[i]?.ToString() == currentDisplay)
             {
                 _cboLanguage.SelectedIndex = i;
                 break;
@@ -133,7 +157,8 @@ public partial class MainForm : Form
         _topToolbar.Items.Add(_lblStatusText);
         _topToolbar.Items.Add(_lblStatusValue);
         _topToolbar.Items.Add(new ToolStripSeparator());
-        _topToolbar.Items.Add(new ToolStripLabel(Strings.SwitchLanguage + ": "));
+        _lblLanguage = CreateToolbarLabel(Strings.SwitchLanguage + ": ");
+        _topToolbar.Items.Add(_lblLanguage);
         _topToolbar.Items.Add(_cboLanguage);
 
         // ---------- DataGridView 变量监视表格 ----------
@@ -148,6 +173,8 @@ public partial class MainForm : Form
             ReadOnly = true,                 // 所有单元格只读（双击不能编辑）
             RowHeadersVisible = false,       // 隐藏左侧行头
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, // 列宽自动填充
+            ColumnHeadersHeight = 34,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
             BackgroundColor = Color.White,
             BorderStyle = BorderStyle.None
         };
@@ -160,61 +187,90 @@ public partial class MainForm : Form
         {
             Text = Strings.VariableOperation,
             Dock = DockStyle.Bottom,
-            Height = 80
+            Height = 116,
+            Padding = new Padding(12, 28, 12, 12)
+        };
+
+        var operationLayout = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoScroll = false,
+            Height = 46,
+            Padding = new Padding(0),
+            Margin = new Padding(0)
         };
 
         _lblSelectedInfo = new Label
         {
             Text = $"{Strings.SelectedVariable}: ---",
-            Location = new Point(15, 25),
-            AutoSize = true
+            AutoSize = false,
+            AutoEllipsis = true,
+            Width = 360,
+            Height = 40,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0, 0, 28, 0)
         };
 
         _lblWriteValue = new Label
         {
             Text = Strings.WriteNewValue + ": ",
-            Location = new Point(350, 25),
-            AutoSize = true
+            AutoSize = false,
+            Width = 120,
+            Height = 40,
+            TextAlign = ContentAlignment.MiddleRight,
+            Margin = new Padding(0, 0, 8, 0)
         };
         _txtWriteValue = new TextBox
         {
-            Location = new Point(430, 22),
-            Width = 100,
-            Enabled = false
+            Width = 130,
+            Enabled = false,
+            Margin = new Padding(0, 6, 14, 0)
         };
         _btnWrite = new Button
         {
             Text = Strings.Write,
-            Location = new Point(540, 20),
-            Size = new Size(70, 28),
-            Enabled = false
+            Size = new Size(90, 34),
+            MinimumSize = new Size(90, 34),
+            Enabled = false,
+            Margin = new Padding(0, 3, 0, 0)
         };
         _btnWrite.Click += BtnWrite_Click;
 
-        _grpOperation.Controls.Add(_lblSelectedInfo);
-        _grpOperation.Controls.Add(_lblWriteValue);
-        _grpOperation.Controls.Add(_txtWriteValue);
-        _grpOperation.Controls.Add(_btnWrite);
+        operationLayout.Controls.Add(_lblSelectedInfo);
+        operationLayout.Controls.Add(_lblWriteValue);
+        operationLayout.Controls.Add(_txtWriteValue);
+        operationLayout.Controls.Add(_btnWrite);
+        _grpOperation.Controls.Add(operationLayout);
 
         // ---------- 底部工具栏 ----------
-        _bottomToolbar = new ToolStrip { Dock = DockStyle.Bottom, GripStyle = ToolStripGripStyle.Hidden };
+        _bottomToolbar = new ToolStrip
+        {
+            Dock = DockStyle.Bottom,
+            GripStyle = ToolStripGripStyle.Hidden,
+            AutoSize = false,
+            Height = 42,
+            Padding = new Padding(8, 4, 8, 4),
+            RenderMode = ToolStripRenderMode.System
+        };
 
-        _btnAdd = new ToolStripButton(Strings.AddVariable) { ImageScaling = ToolStripItemImageScaling.None };
+        _btnAdd = CreateToolbarButton(Strings.AddVariable);
         _btnAdd.Click += BtnAdd_Click;
 
-        _btnEdit = new ToolStripButton(Strings.EditVariable) { ImageScaling = ToolStripItemImageScaling.None };
+        _btnEdit = CreateToolbarButton(Strings.EditVariable);
         _btnEdit.Click += BtnEdit_Click;
 
-        _btnDelete = new ToolStripButton(Strings.DeleteVariable) { ImageScaling = ToolStripItemImageScaling.None };
+        _btnDelete = CreateToolbarButton(Strings.DeleteVariable);
         _btnDelete.Click += BtnDelete_Click;
 
-        _btnImport = new ToolStripButton(Strings.ImportVariables) { ImageScaling = ToolStripItemImageScaling.None };
+        _btnImport = CreateToolbarButton(Strings.ImportVariables);
         _btnImport.Click += BtnImport_Click;
 
-        _btnExport = new ToolStripButton(Strings.ExportVariables) { ImageScaling = ToolStripItemImageScaling.None };
+        _btnExport = CreateToolbarButton(Strings.ExportVariables);
         _btnExport.Click += BtnExport_Click;
 
-        _btnRefresh = new ToolStripButton(Strings.ColValue + " ↻") { ImageScaling = ToolStripItemImageScaling.None };
+        _btnRefresh = CreateToolbarButton(Strings.Refresh);
         _btnRefresh.Click += (s, e) => _dgvVariables.Refresh();
 
         _bottomToolbar.Items.Add(_btnAdd);
@@ -231,6 +287,32 @@ public partial class MainForm : Form
         Controls.Add(_grpOperation);        // 底部固定
         Controls.Add(_bottomToolbar);       // 最底
         Controls.Add(_topToolbar);          // 最顶
+
+        ResumeLayout(false);
+        PerformLayout();
+    }
+
+    private static ToolStripButton CreateToolbarButton(string text)
+    {
+        return new ToolStripButton(text)
+        {
+            DisplayStyle = ToolStripItemDisplayStyle.Text,
+            ImageScaling = ToolStripItemImageScaling.None,
+            AutoSize = true,
+            Padding = new Padding(6, 0, 6, 0),
+            Margin = new Padding(2, 0, 2, 0),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+    }
+
+    private static ToolStripLabel CreateToolbarLabel(string text)
+    {
+        return new ToolStripLabel(text)
+        {
+            AutoSize = true,
+            Margin = new Padding(6, 0, 2, 0),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
     }
 
     // ================================================================
@@ -255,44 +337,33 @@ public partial class MainForm : Form
         _dgvVariables.DataSource = null;
         _dgvVariables.DataSource = _variableManager.Variables;
 
-        // 禁用不需要显示的列
-        if (_dgvVariables.Columns["LastReadTime"] is DataGridViewColumn lastCol)
-            lastCol.Visible = false;
-
-        // 重命名列头文本
-        if (_dgvVariables.Columns["Name"] is DataGridViewColumn nameCol)
-            nameCol.HeaderText = Strings.ColName;
-        if (_dgvVariables.Columns["Address"] is DataGridViewColumn addrCol)
-            addrCol.HeaderText = Strings.ColAddress;
-        if (_dgvVariables.Columns["DataType"] is DataGridViewColumn dtCol)
-            dtCol.HeaderText = Strings.ColDataType;
-        if (_dgvVariables.Columns["CurrentValue"] is DataGridViewColumn valCol)
-            valCol.HeaderText = Strings.ColValue;
-        if (_dgvVariables.Columns["IsConnected"] is DataGridViewColumn connCol)
-            connCol.HeaderText = Strings.ColStatus;
-        if (_dgvVariables.Columns["PollInterval"] is DataGridViewColumn intCol)
-            intCol.HeaderText = Strings.ColInterval;
-        if (_dgvVariables.Columns["CanWrite"] is DataGridViewColumn wCol)
-            wCol.HeaderText = Strings.ColCanWrite;
-
-        // 设置列宽比例
-        if (_dgvVariables.Columns["Name"] is DataGridViewColumn nc)
-            nc.FillWeight = 25;
-        if (_dgvVariables.Columns["Address"] is DataGridViewColumn ac)
-            ac.FillWeight = 12;
-        if (_dgvVariables.Columns["DataType"] is DataGridViewColumn dc)
-            dc.FillWeight = 18;
-        if (_dgvVariables.Columns["CurrentValue"] is DataGridViewColumn vc)
-            vc.FillWeight = 15;
-        if (_dgvVariables.Columns["IsConnected"] is DataGridViewColumn cc)
-            cc.FillWeight = 12;
-        if (_dgvVariables.Columns["PollInterval"] is DataGridViewColumn ic)
-            ic.FillWeight = 10;
-        if (_dgvVariables.Columns["CanWrite"] is DataGridViewColumn wc)
-            wc.FillWeight = 8;
+        ConfigureVariableGridColumns();
 
         // 注册单元格格式化事件 — 让值以更友好的形式显示
         _dgvVariables.CellFormatting += DgvVariables_CellFormatting;
+    }
+
+    private void ConfigureVariableGridColumns()
+    {
+        if (_dgvVariables.Columns["LastReadTime"] is DataGridViewColumn lastCol)
+            lastCol.Visible = false;
+
+        ConfigureColumn("Name", Strings.ColName, 24, 160);
+        ConfigureColumn("Address", Strings.ColAddress, 12, 90);
+        ConfigureColumn("DataType", Strings.ColDataType, 18, 130);
+        ConfigureColumn("CanWrite", Strings.ColCanWrite, 8, 80);
+        ConfigureColumn("PollInterval", Strings.ColInterval, 15, 180);
+        ConfigureColumn("CurrentValue", Strings.ColValue, 11, 120);
+        ConfigureColumn("IsConnected", Strings.ColStatus, 12, 120);
+    }
+
+    private void ConfigureColumn(string name, string headerText, float fillWeight, int minimumWidth)
+    {
+        if (_dgvVariables.Columns[name] is not DataGridViewColumn column) return;
+
+        column.HeaderText = headerText;
+        column.FillWeight = fillWeight;
+        column.MinimumWidth = minimumWidth;
     }
 
     /// <summary>
@@ -300,24 +371,26 @@ public partial class MainForm : Form
     /// </summary>
     private void DgvVariables_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
     {
-        // 只处理 CurrentValue 列
-        if (_dgvVariables.Columns[e.ColumnIndex].Name != "CurrentValue") return;
-        if (e.Value == null || e.Value == DBNull.Value)
-        {
-            e.Value = "---"; // 未读取到值时显示 "---"
-        }
-        else if (e.Value is bool b)
-        {
-            // 布尔值显示为 ON/OFF
-            e.Value = b ? "ON" : "OFF";
-            // 根据值设置颜色：ON=绿色, OFF=灰色
-            e.CellStyle!.ForeColor = b ? Color.Green : Color.Gray;
-            e.CellStyle.Font = new Font("Microsoft YaHei", 9F, FontStyle.Bold);
-        }
+        var columnName = _dgvVariables.Columns[e.ColumnIndex].Name;
 
-        // 通信状态列 — 根据 IsConnected 值染色
-        if (_dgvVariables.Columns[e.ColumnIndex].Name == "IsConnected" && e.Value is bool connVal)
+        if (columnName == "CurrentValue")
         {
+            if (e.Value == null || e.Value == DBNull.Value)
+            {
+                e.Value = "---"; // 未读取到值时显示 "---"
+            }
+            else if (e.Value is bool b)
+            {
+                // 布尔值显示为 ON/OFF
+                e.Value = b ? "ON" : "OFF";
+                // 根据值设置颜色：ON=绿色, OFF=灰色
+                e.CellStyle!.ForeColor = b ? Color.Green : Color.Gray;
+                e.CellStyle.Font = new Font("Microsoft YaHei", 9F, FontStyle.Bold);
+            }
+        }
+        else if (columnName == "IsConnected" && e.Value is bool connVal)
+        {
+            // 通信状态列：根据 IsConnected 值显示当前语言文本并染色
             e.Value = connVal ? Strings.StatusGood : Strings.StatusError;
             e.CellStyle!.ForeColor = connVal ? Color.Green : Color.Red;
         }
@@ -568,38 +641,41 @@ public partial class MainForm : Form
     /// </summary>
     private void DgvVariables_SelectionChanged(object? sender, EventArgs e)
     {
-        // 没有选中行
+        var variable = UpdateSelectedVariableInfo();
+
+        // 只有可写变量才允许写入
+        bool canWrite = variable?.CanWrite == true && _modbusService.IsConnected;
+        _txtWriteValue.Enabled = canWrite;
+        _btnWrite.Enabled = canWrite;
+        _txtWriteValue.Text = string.Empty;
+    }
+
+    private ModbusVariable? UpdateSelectedVariableInfo()
+    {
         if (_dgvVariables.SelectedRows.Count == 0)
         {
             _lblSelectedInfo.Text = $"{Strings.SelectedVariable}: ---";
-            _txtWriteValue.Enabled = false;
-            _btnWrite.Enabled = false;
-            return;
+            return null;
         }
 
-        // 获取选中变量
         var index = _dgvVariables.SelectedRows[0].Index;
-        if (index >= _variableManager.Variables.Count) return;
+        if (index < 0 || index >= _variableManager.Variables.Count)
+        {
+            _lblSelectedInfo.Text = $"{Strings.SelectedVariable}: ---";
+            return null;
+        }
+
         var variable = _variableManager.Variables[index];
-
-        // 更新选中信息显示
         var infoText = _variableManager.GetDisplayText(index);
-        _lblSelectedInfo.Text = $"{Strings.SelectedVariable}: {infoText}";
-
-        // 更新当前值显示
         var valStr = variable.CurrentValue switch
         {
             bool b => b ? "ON" : "OFF",
             ushort n => n.ToString(),
             _ => "---"
         };
-        _lblSelectedInfo.Text += $"  —  {Strings.CurrentValue}: {valStr}";
 
-        // 只有可写变量才允许写入
-        bool canWrite = variable.CanWrite && _modbusService.IsConnected;
-        _txtWriteValue.Enabled = canWrite;
-        _btnWrite.Enabled = canWrite;
-        _txtWriteValue.Text = string.Empty;
+        _lblSelectedInfo.Text = $"{Strings.SelectedVariable}: {infoText}    {Strings.CurrentValue}: {valStr}";
+        return variable;
     }
 
     /// <summary>
@@ -711,6 +787,11 @@ public partial class MainForm : Form
 
         // 状态标签
         _lblStatusText.Text = Strings.ConnectionStatus + ": ";
+        _lblLanguage.Text = Strings.SwitchLanguage + ": ";
+        _lblStatusValue.Text = _modbusService.IsConnected
+            ? $"{Strings.Connected} {_settings.IPAddress}:{_settings.Port}"
+            : Strings.NotConnected;
+        _lblStatusValue.ForeColor = _modbusService.IsConnected ? Color.Green : Color.Red;
 
         // 底部按钮
         _btnAdd.Text = Strings.AddVariable;
@@ -718,27 +799,16 @@ public partial class MainForm : Form
         _btnDelete.Text = Strings.DeleteVariable;
         _btnImport.Text = Strings.ImportVariables;
         _btnExport.Text = Strings.ExportVariables;
+        _btnRefresh.Text = Strings.Refresh;
 
         // 操作面板
         _grpOperation.Text = Strings.VariableOperation;
         _lblWriteValue.Text = Strings.WriteNewValue + ": ";
         _btnWrite.Text = Strings.Write;
+        UpdateSelectedVariableInfo();
 
         // 表格列头
-        if (_dgvVariables.Columns["Name"] is DataGridViewColumn nc)
-            nc.HeaderText = Strings.ColName;
-        if (_dgvVariables.Columns["Address"] is DataGridViewColumn ac)
-            ac.HeaderText = Strings.ColAddress;
-        if (_dgvVariables.Columns["DataType"] is DataGridViewColumn dc)
-            dc.HeaderText = Strings.ColDataType;
-        if (_dgvVariables.Columns["CurrentValue"] is DataGridViewColumn vc)
-            vc.HeaderText = Strings.ColValue;
-        if (_dgvVariables.Columns["IsConnected"] is DataGridViewColumn cc)
-            cc.HeaderText = Strings.ColStatus;
-        if (_dgvVariables.Columns["PollInterval"] is DataGridViewColumn ic)
-            ic.HeaderText = Strings.ColInterval;
-        if (_dgvVariables.Columns["CanWrite"] is DataGridViewColumn wc)
-            wc.HeaderText = Strings.ColCanWrite;
+        ConfigureVariableGridColumns();
 
         // 重新刷新表格内容（让 CellFormatting 事件重新触发）
         _dgvVariables.Refresh();

@@ -5,9 +5,9 @@
 // ============================================================
 
 using System.ComponentModel;
-using Modbus上位机.Models;
+using ModbusSCADA.Models;
 
-namespace Modbus上位机.Services;
+namespace ModbusSCADA.Services;
 
 /// <summary>
 /// 变量管理器 — 维护变量列表，支持增删改查，数据变更时通知 UI 刷新

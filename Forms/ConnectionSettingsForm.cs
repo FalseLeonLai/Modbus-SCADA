@@ -4,10 +4,10 @@
 // 使用: 工具栏 "连接设置" 按钮打开此窗口
 // ============================================================
 
-using Modbus上位机.Models;
-using Modbus上位机.Resources;
+using ModbusSCADA.Models;
+using ModbusSCADA.Resources;
 
-namespace Modbus上位机.Forms;
+namespace ModbusSCADA.Forms;
 
 /// <summary>
 /// 连接设置弹窗

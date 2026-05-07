@@ -3,10 +3,10 @@
 // 作用: 变量配置弹窗 — 添加或编辑一个 Modbus 监控变量
 // ============================================================
 
-using Modbus上位机.Models;
-using Modbus上位机.Resources;
+using ModbusSCADA.Models;
+using ModbusSCADA.Resources;
 
-namespace Modbus上位机.Forms;
+namespace ModbusSCADA.Forms;
 
 /// <summary>
 /// 变量配置弹窗 — 用于新增或修改变量

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); gh --version 2>&1)",
+      "PowerShell(winget install GitHub.cli --silent --accept-source-agreements --accept-package-agreements 2>&1)"
+    ]
+  }
+}

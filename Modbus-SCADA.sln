@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.5.2.0
+# Visual Studio Version 18
+VisualStudioVersion = 18.5.11723.231
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modbus上位机", "Modbus上位机.csproj", "{4722070E-8C76-3552-37D3-7A32AEA25508}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modbus-SCADA", "Modbus-SCADA.csproj", "{2BF0EF5C-0233-C6E5-ADFE-5CDC802439FD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{4722070E-8C76-3552-37D3-7A32AEA25508}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4722070E-8C76-3552-37D3-7A32AEA25508}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4722070E-8C76-3552-37D3-7A32AEA25508}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4722070E-8C76-3552-37D3-7A32AEA25508}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2BF0EF5C-0233-C6E5-ADFE-5CDC802439FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BF0EF5C-0233-C6E5-ADFE-5CDC802439FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BF0EF5C-0233-C6E5-ADFE-5CDC802439FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BF0EF5C-0233-C6E5-ADFE-5CDC802439FD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
