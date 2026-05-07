@@ -4,9 +4,9 @@
 // 依赖: NModbus NuGet 包
 // ============================================================
 
-using System.Net.Sockets;
-using NModbus;
 using ModbusSCADA.Models;
+using NModbus;
+using System.Net.Sockets;
 
 namespace ModbusSCADA.Services;
 
@@ -290,16 +290,9 @@ public class ModbusService : IDisposable
             object? valSnapshot = value;
             bool connSnapshot = connected;
             var manager = _variableManager;
-            // 闭包捕获 token — Post 的 lambda 在 UI 线程执行时,如果用户已点"断开"
-            // (token 已 Cancel),就不要再写入,否则会覆盖 MarkAllDisconnected 的结果
-            var ctxToken = token;
             if (_uiContext != null)
             {
-                _uiContext.Post(_ =>
-                {
-                    if (ctxToken.IsCancellationRequested) return;
-                    manager?.UpdateValue(idxSnapshot, valSnapshot, connSnapshot);
-                }, null);
+                _uiContext.Post(_ => manager?.UpdateValue(idxSnapshot, valSnapshot, connSnapshot), null);
             }
             else
             {

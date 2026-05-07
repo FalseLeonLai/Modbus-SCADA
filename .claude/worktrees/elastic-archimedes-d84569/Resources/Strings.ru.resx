@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- ======================== Русский ======================== -->
+  <data name="AppTitle" xml:space="preserve"><value>Modbus TCP Монитор</value></data>
+  <data name="Connect" xml:space="preserve"><value>Подключить</value></data>
+  <data name="Disconnect" xml:space="preserve"><value>Отключить</value></data>
+  <data name="ConnectionStatus" xml:space="preserve"><value>Статус</value></data>
+  <data name="Connected" xml:space="preserve"><value>Подключено</value></data>
+  <data name="NotConnected" xml:space="preserve"><value>Не подключено</value></data>
+  <data name="ConfigConnection" xml:space="preserve"><value>Настройки</value></data>
+  <data name="VariableMonitor" xml:space="preserve"><value>Монитор переменных</value></data>
+  <data name="AddVariable" xml:space="preserve"><value>Добавить</value></data>
+  <data name="EditVariable" xml:space="preserve"><value>Изменить</value></data>
+  <data name="DeleteVariable" xml:space="preserve"><value>Удалить</value></data>
+  <data name="ImportVariables" xml:space="preserve"><value>Импорт</value></data>
+  <data name="ExportVariables" xml:space="preserve"><value>Экспорт</value></data>
+  <data name="Refresh" xml:space="preserve"><value>Обновить</value></data>
+  <data name="VariableOperation" xml:space="preserve"><value>Операции</value></data>
+  <data name="SelectedVariable" xml:space="preserve"><value>Выбрано</value></data>
+  <data name="CurrentValue" xml:space="preserve"><value>Текущее</value></data>
+  <data name="WriteNewValue" xml:space="preserve"><value>Новое</value></data>
+  <data name="Write" xml:space="preserve"><value>Записать</value></data>
+  <data name="ColName" xml:space="preserve"><value>Имя</value></data>
+  <data name="ColAddress" xml:space="preserve"><value>Адрес</value></data>
+  <data name="ColDataType" xml:space="preserve"><value>Тип</value></data>
+  <data name="ColValue" xml:space="preserve"><value>Значение</value></data>
+  <data name="ColStatus" xml:space="preserve"><value>Статус</value></data>
+  <data name="ColInterval" xml:space="preserve"><value>Интервал(мс)</value></data>
+  <data name="ColCanWrite" xml:space="preserve"><value>Запись</value></data>
+  <data name="StatusGood" xml:space="preserve"><value>OK</value></data>
+  <data name="StatusError" xml:space="preserve"><value>Ошибка</value></data>
+  <data name="SwitchLanguage" xml:space="preserve"><value>Язык</value></data>
+  <data name="MsgDisconnectFirst" xml:space="preserve"><value>Сначала отключитесь.</value></data>
+  <data name="MsgConnectSuccess" xml:space="preserve"><value>Подключено успешно.</value></data>
+  <data name="MsgConnectFail" xml:space="preserve"><value>Ошибка подключения. Проверьте IP и порт.</value></data>
+  <data name="MsgWriteSuccess" xml:space="preserve"><value>Запись успешна.</value></data>
+  <data name="MsgWriteFail" xml:space="preserve"><value>Ошибка записи.</value></data>
+  <data name="MsgConfirmDelete" xml:space="preserve"><value>Удалить выбранную переменную?</value></data>
+  <data name="MsgSaveSuccess" xml:space="preserve"><value>Сохранено успешно.</value></data>
+  <data name="MsgSelectVariable" xml:space="preserve"><value>Сначала выберите переменную.</value></data>
+  <data name="MsgVarNameEmpty" xml:space="preserve"><value>Имя переменной не может быть пустым.</value></data>
+  <data name="MsgVarNameDuplicate" xml:space="preserve"><value>Такое имя уже существует.</value></data>
+  <data name="MsgVarAddrRange" xml:space="preserve"><value>Адрес вне диапазона (0-65535).</value></data>
+  <data name="MsgVarIntervalRange" xml:space="preserve"><value>Интервал не может быть менее 50мс.</value></data>
+  <data name="MsgCantWriteReadOnly" xml:space="preserve"><value>Нельзя записать (только чтение).</value></data>
+  <data name="DT_Coil" xml:space="preserve"><value>Coil</value></data>
+  <data name="DT_DiscreteInput" xml:space="preserve"><value>Discrete Input</value></data>
+  <data name="DT_InputRegister" xml:space="preserve"><value>Input Register</value></data>
+  <data name="DT_HoldingRegister" xml:space="preserve"><value>Holding Register</value></data>
+  <data name="ConnSettingsTitle" xml:space="preserve"><value>Настройки подключения</value></data>
+  <data name="IPAddress" xml:space="preserve"><value>IP адрес</value></data>
+  <data name="Port" xml:space="preserve"><value>Порт</value></data>
+  <data name="SlaveId" xml:space="preserve"><value>Slave ID</value></data>
+  <data name="Timeout" xml:space="preserve"><value>Таймаут (мс)</value></data>
+  <data name="ReconnectInterval" xml:space="preserve"><value>Переподкл. (мс)</value></data>
+  <data name="Save" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Отмена</value></data>
+  <data name="VarConfigTitle" xml:space="preserve"><value>Настройки переменной</value></data>
+  <data name="VarName" xml:space="preserve"><value>Имя</value></data>
+  <data name="VarAddress" xml:space="preserve"><value>Адрес</value></data>
+  <data name="VarDataType" xml:space="preserve"><value>Тип</value></data>
+  <data name="VarPollInterval" xml:space="preserve"><value>Интервал (мс)</value></data>
+  <data name="VarCanWrite" xml:space="preserve"><value>Запись</value></data>
+</root>

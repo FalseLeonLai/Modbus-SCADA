@@ -464,10 +464,6 @@ public partial class MainForm : Form
     {
         _modbusService.Disconnect();
 
-        // 把所有变量标记为通信断开 — 否则 IsConnected 列会保持上次轮询的"正常"状态,
-        // 让用户误以为还在通信
-        _variableManager.MarkAllDisconnected();
-
         // 更新 UI 状态
         _lblStatusValue.Text = Strings.NotConnected;
         _lblStatusValue.ForeColor = Color.Red;

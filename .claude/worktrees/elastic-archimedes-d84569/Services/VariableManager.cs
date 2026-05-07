@@ -4,8 +4,8 @@
 // 设计: 使用 绑定列表(BindingList) 让 DataGridView 自动同步数据
 // ============================================================
 
-using System.ComponentModel;
 using ModbusSCADA.Models;
+using System.ComponentModel;
 
 namespace ModbusSCADA.Services;
 
@@ -72,22 +72,6 @@ public class VariableManager
         // 手动触发列表项变更事件，通知 DataGridView 刷新该行
         // ResetItem 会让 DataGridView 重新读取该行的所有属性值
         Variables.ResetItem(index);
-    }
-
-    /// <summary>
-    /// 把所有变量标记为通信断开 — 在用户主动断开连接时调用。
-    /// 通信状态 IsConnected 重置为 false,CurrentValue 清空为 null
-    /// (CellFormatting 会显示 "---"),让 UI 立刻反映"已断开"语义。
-    /// </summary>
-    public void MarkAllDisconnected()
-    {
-        for (int i = 0; i < Variables.Count; i++)
-        {
-            var variable = Variables[i];
-            variable.IsConnected = false;
-            variable.CurrentValue = null;
-            Variables.ResetItem(i);
-        }
     }
 
     /// <summary>
