@@ -4,9 +4,8 @@
 // 设计: 这是用户与 Modbus 设备交互的核心界面
 // ============================================================
 
-using System.ComponentModel;
-using ModbusSCADA.Models;
 using ModbusSCADA.Helpers;
+using ModbusSCADA.Models;
 using ModbusSCADA.Resources;
 using ModbusSCADA.Services;
 
@@ -90,13 +89,18 @@ public partial class MainForm : Form
     {
         SuspendLayout();
 
-        // ---------- 窗口属性 ----------
-        Text = Strings.AppTitle;
-        Size = new Size(1100, 650);
-        MinimumSize = new Size(900, 560);
-        StartPosition = FormStartPosition.CenterScreen;
+        // DPI 缩放配置 — 必须在设置 Size/MinimumSize 和添加任何控件之前完成,
+        // 否则后续设置的尺寸值不会按当前 DPI 因子缩放,导致高 DPI 下窗口偏小、列头文字截断
+        AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         Font = new Font("Microsoft YaHei UI", 9F);
+
+        // ---------- 窗口属性 ----------
+        Text = Strings.AppTitle;
+        // 使用 ClientSize 而非 Size,前者不含标题栏/边框,DPI 缩放下尺寸更稳定
+        ClientSize = new Size(1100, 650);
+        MinimumSize = new Size(916, 600);
+        StartPosition = FormStartPosition.CenterScreen;
 
         // ---------- 顶部工具栏 ----------
         _topToolbar = new ToolStrip
@@ -173,8 +177,13 @@ public partial class MainForm : Form
             ReadOnly = true,                 // 所有单元格只读（双击不能编辑）
             RowHeadersVisible = false,       // 隐藏左侧行头
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, // 列宽自动填充
-            ColumnHeadersHeight = 34,
-            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+            // 列头高度自动跟随字体 — 避免硬编码 34px 在高 DPI 下文字被裁剪
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
+            ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+            {
+                Padding = new Padding(4, 6, 4, 6),
+                Alignment = DataGridViewContentAlignment.MiddleLeft
+            },
             BackgroundColor = Color.White,
             BorderStyle = BorderStyle.None
         };
@@ -367,13 +376,15 @@ public partial class MainForm : Form
                 statusCol.DisplayIndex = displayIndex;
         }
 
-        ConfigureColumn("Name", Strings.ColName, 24, 160);
-        ConfigureColumn("Address", Strings.ColAddress, 12, 90);
-        ConfigureColumn("DataType", Strings.ColDataType, 18, 130);
-        ConfigureColumn("CanWrite", Strings.ColCanWrite, 8, 80);
-        ConfigureColumn("PollInterval", Strings.ColInterval, 15, 180);
-        ConfigureColumn("CurrentValue", Strings.ColValue, 11, 120);
-        ConfigureColumn("IsConnected", Strings.ColStatus, 12, 120);
+        // MinimumWidth 留出充裕空间给中/英/俄文标题(含排序箭头/Padding 大约 + 30px),
+        // 避免在高 DPI 下因字体放大但 MinimumWidth 不缩放导致列头文字被裁剪
+        ConfigureColumn("Name", Strings.ColName, 22, 140);
+        ConfigureColumn("Address", Strings.ColAddress, 10, 100);
+        ConfigureColumn("DataType", Strings.ColDataType, 14, 130);
+        ConfigureColumn("CanWrite", Strings.ColCanWrite, 8, 90);
+        ConfigureColumn("PollInterval", Strings.ColInterval, 16, 160);
+        ConfigureColumn("CurrentValue", Strings.ColValue, 12, 110);
+        ConfigureColumn("IsConnected", Strings.ColStatus, 14, 130);
     }
 
     private void ConfigureColumn(string name, string headerText, float fillWeight, int minimumWidth)
