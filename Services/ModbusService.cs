@@ -35,6 +35,16 @@ public class ModbusService : IDisposable
     /// <summary>变量管理器引用</summary>
     private VariableManager? _variableManager;
 
+    /// <summary>UI 线程的同步上下文 — 用于把后台轮询数据回写到 UI 线程</summary>
+    /// <remarks>
+    /// BindingList 绑定到 DataGridView 时,从后台线程调用 ResetItem 会触发跨线程访问
+    /// Handle 抛 InvalidOperationException。通过捕获 UI 线程的 SynchronizationContext,
+    /// 用 Post 把数据更新切回 UI 线程,可彻底避免该异常。
+    /// 在 StartPoll 时捕获(此时由用户点击触发,必然在 UI 线程),
+    /// 比字段初始化阶段捕获更稳健(后者时机过早,Control 基类可能尚未安装上下文)。
+    /// </remarks>
+    private SynchronizationContext? _uiContext;
+
     // ================================================================
     // 连接 / 断开
     // ================================================================
@@ -213,6 +223,9 @@ public class ModbusService : IDisposable
     {
         // 保存变量管理器引用，供轮询内部使用
         _variableManager = variableManager;
+        // 捕获 UI 线程的同步上下文 — StartPoll 由 UI 事件(连接按钮点击)调用,
+        // 此时 SynchronizationContext.Current 一定是 WindowsFormsSynchronizationContext
+        _uiContext = SynchronizationContext.Current;
         // 先停止已有的轮询
         StopPoll();
         // 创建新的取消令牌
@@ -269,9 +282,23 @@ public class ModbusService : IDisposable
                 _ => null
             };
 
-            // 更新变量管理器中的值
+            // 更新变量管理器中的值 — 必须切到 UI 线程,否则 BindingList 绑定的
+            // DataGridView 会在后台线程访问 Handle 抛 InvalidOperationException
             var connected = value != null; // 如果读取成功，value 不为 null
-            _variableManager.UpdateValue(currentIndex, value, connected);
+            // 捕获到局部变量,避免闭包陷阱(currentIndex/value 在循环中会改变)
+            int idxSnapshot = currentIndex;
+            object? valSnapshot = value;
+            bool connSnapshot = connected;
+            var manager = _variableManager;
+            if (_uiContext != null)
+            {
+                _uiContext.Post(_ => manager?.UpdateValue(idxSnapshot, valSnapshot, connSnapshot), null);
+            }
+            else
+            {
+                // 兜底: 没有 UI 上下文时同步调用(例如单元测试场景)
+                manager.UpdateValue(idxSnapshot, valSnapshot, connSnapshot);
+            }
 
             // 移动到下一个变量（循环遍历）
             // 数学取模运算: 确保索引在 0 到 Count-1 之间循环

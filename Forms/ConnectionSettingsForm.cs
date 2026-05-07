@@ -50,9 +50,16 @@ public partial class ConnectionSettingsForm : Form
     /// </summary>
     private void InitializeForm()
     {
+        SuspendLayout();
+
+        // DPI 缩放 — 必须在添加任何控件之前设置,且 AutoScaleDimensions 在 AutoScaleMode 之前
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+
         // 表单基本属性
         Text = Strings.ConnSettingsTitle;
-        Size = new Size(400, 300);
+        // 使用 ClientSize(不含标题栏/边框),DPI 下行为更稳定
+        ClientSize = new Size(400, 300);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -68,27 +75,54 @@ public partial class ConnectionSettingsForm : Form
             Padding = new Padding(15),
             CellBorderStyle = TableLayoutPanelCellBorderStyle.None
         };
-        // 列宽：第0列 120px（标签），第1列 填充剩余空间
-        _table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        // 标签列 AutoSize — 适应多语言长文字,第二列填充剩余空间
+        _table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        // 7 行均使用 AutoSize,根据控件实际高度自适应,避免被压缩
+        for (int i = 0; i < 7; i++)
+            _table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         // 创建所有控件
-        _lblIP = new Label { Text = Strings.IPAddress, TextAlign = ContentAlignment.MiddleRight };
+        _lblIP = new Label
+        {
+            Text = Strings.IPAddress, AutoSize = true, Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(3, 8, 3, 8)
+        };
         _txtIP = new TextBox { Text = "127.0.0.1", Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
-        _lblPort = new Label { Text = Strings.Port, TextAlign = ContentAlignment.MiddleRight };
+        _lblPort = new Label
+        {
+            Text = Strings.Port, AutoSize = true, Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(3, 8, 3, 8)
+        };
         _txtPort = new TextBox { Text = "502", Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
-        _lblSlaveId = new Label { Text = Strings.SlaveId, TextAlign = ContentAlignment.MiddleRight };
+        _lblSlaveId = new Label
+        {
+            Text = Strings.SlaveId, AutoSize = true, Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(3, 8, 3, 8)
+        };
         _txtSlaveId = new TextBox { Text = "1", Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
-        _lblTimeout = new Label { Text = Strings.Timeout, TextAlign = ContentAlignment.MiddleRight };
+        _lblTimeout = new Label
+        {
+            Text = Strings.Timeout, AutoSize = true, Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(3, 8, 3, 8)
+        };
         _txtTimeout = new TextBox { Text = "3000", Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
-        _lblReconnectInterval = new Label { Text = Strings.ReconnectInterval, TextAlign = ContentAlignment.MiddleRight };
+        _lblReconnectInterval = new Label
+        {
+            Text = Strings.ReconnectInterval, AutoSize = true, Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(3, 8, 3, 8)
+        };
         _txtReconnectInterval = new TextBox { Text = "5000", Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
-        _lblLanguage = new Label { Text = Strings.SwitchLanguage, TextAlign = ContentAlignment.MiddleRight };
+        _lblLanguage = new Label
+        {
+            Text = Strings.SwitchLanguage, AutoSize = true, Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(3, 8, 3, 8)
+        };
         _cboLanguage = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right };
         foreach (var lang in Helpers.LanguageHelper.SupportedLanguages)
         {
@@ -102,10 +136,21 @@ public partial class ConnectionSettingsForm : Form
         {
             FlowDirection = FlowDirection.RightToLeft,
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(0, 10, 0, 0)
         };
-        _btnCancel = new Button { Text = Strings.Cancel, Size = new Size(80, 30) };
-        _btnSave = new Button { Text = Strings.Save, Size = new Size(80, 30) };
+        // 使用 MinimumSize + AutoSize,让按钮在高 DPI 下随字体缩放
+        _btnCancel = new Button
+        {
+            Text = Strings.Cancel, AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(80, 30)
+        };
+        _btnSave = new Button
+        {
+            Text = Strings.Save, AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(80, 30)
+        };
         _btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
         _btnSave.Click += BtnSave_Click;
         buttonPanel.Controls.Add(_btnCancel);
@@ -128,6 +173,9 @@ public partial class ConnectionSettingsForm : Form
         _table.SetColumnSpan(buttonPanel, 2); // 按钮行跨两列
 
         Controls.Add(_table);
+
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     /// <summary>

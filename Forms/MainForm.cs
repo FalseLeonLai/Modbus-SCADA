@@ -348,6 +348,25 @@ public partial class MainForm : Form
         if (_dgvVariables.Columns["LastReadTime"] is DataGridViewColumn lastCol)
             lastCol.Visible = false;
 
+        // 替换自动生成的 IsConnected (CheckBoxColumn) 为 TextBoxColumn —
+        // 否则 CellFormatting 把 e.Value 改成本地化字符串("正常"/"异常")时,
+        // CheckBoxColumn 会试图把字符串解析回 bool 抛 FormatException。
+        // 该方法可能被语言切换二次调用,先判断是否已是 TextBoxColumn 避免重复替换。
+        if (_dgvVariables.Columns["IsConnected"] is DataGridViewCheckBoxColumn oldStatusCol)
+        {
+            int displayIndex = oldStatusCol.DisplayIndex;
+            _dgvVariables.Columns.Remove(oldStatusCol);
+            var statusCol = new DataGridViewTextBoxColumn
+            {
+                Name = "IsConnected",
+                DataPropertyName = "IsConnected",
+                ReadOnly = true
+            };
+            _dgvVariables.Columns.Add(statusCol);
+            if (displayIndex >= 0 && displayIndex < _dgvVariables.Columns.Count)
+                statusCol.DisplayIndex = displayIndex;
+        }
+
         ConfigureColumn("Name", Strings.ColName, 24, 160);
         ConfigureColumn("Address", Strings.ColAddress, 12, 90);
         ConfigureColumn("DataType", Strings.ColDataType, 18, 130);
