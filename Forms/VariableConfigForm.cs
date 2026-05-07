@@ -69,8 +69,15 @@ public partial class VariableConfigForm : Form
     /// </summary>
     private void InitializeForm()
     {
+        SuspendLayout();
+
+        // DPI 缩放 — 必须在添加任何控件之前设置,且 AutoScaleDimensions 在 AutoScaleMode 之前
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+
         Text = Strings.VarConfigTitle;
-        Size = new Size(420, 260);
+        // 使用 ClientSize(不含标题栏/边框),DPI 下行为更稳定
+        ClientSize = new Size(420, 260);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false; MinimizeBox = false;
         StartPosition = FormStartPosition.CenterParent;
@@ -83,19 +90,44 @@ public partial class VariableConfigForm : Form
             RowCount = 6,
             Padding = new Padding(15),
         };
-        _table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        // 标签列 AutoSize — 适应多语言长文字(如俄文 "Интервал опроса")
+        _table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        // 6 行均使用 AutoSize,根据控件实际高度自适应,避免被压缩
+        for (int i = 0; i < 6; i++)
+            _table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         // 变量名称
-        _lblName = new Label { Text = Strings.VarName, TextAlign = ContentAlignment.MiddleRight };
+        _lblName = new Label
+        {
+            Text = Strings.VarName,
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight,
+            Margin = new Padding(3, 8, 3, 8)
+        };
         _txtName = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
         // 地址
-        _lblAddress = new Label { Text = Strings.VarAddress, TextAlign = ContentAlignment.MiddleRight };
+        _lblAddress = new Label
+        {
+            Text = Strings.VarAddress,
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight,
+            Margin = new Padding(3, 8, 3, 8)
+        };
         _txtAddress = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
         // 数据类型
-        _lblDataType = new Label { Text = Strings.VarDataType, TextAlign = ContentAlignment.MiddleRight };
+        _lblDataType = new Label
+        {
+            Text = Strings.VarDataType,
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight,
+            Margin = new Padding(3, 8, 3, 8)
+        };
         _cboDataType = new ComboBox
         {
             DropDownStyle = ComboBoxStyle.DropDownList,
@@ -111,14 +143,23 @@ public partial class VariableConfigForm : Form
         _cboDataType.SelectedIndexChanged += CboDataType_SelectedIndexChanged;
 
         // 轮询间隔
-        _lblPollInterval = new Label { Text = Strings.VarPollInterval, TextAlign = ContentAlignment.MiddleRight };
+        _lblPollInterval = new Label
+        {
+            Text = Strings.VarPollInterval,
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight,
+            Margin = new Padding(3, 8, 3, 8)
+        };
         _txtPollInterval = new TextBox { Text = "1000", Anchor = AnchorStyles.Left | AnchorStyles.Right };
 
         // 可写复选框
         _chkCanWrite = new CheckBox
         {
             Text = Strings.VarCanWrite,
-            Anchor = AnchorStyles.Left
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(3, 8, 3, 8)
         };
 
         // 按钮行
@@ -126,10 +167,25 @@ public partial class VariableConfigForm : Form
         {
             FlowDirection = FlowDirection.RightToLeft,
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(0, 10, 0, 0)
         };
-        _btnCancel = new Button { Text = Strings.Cancel, Size = new Size(80, 30) };
-        _btnSave = new Button { Text = Strings.Save, Size = new Size(80, 30) };
+        // 使用 MinimumSize + AutoSize,让按钮在高 DPI 下随字体缩放
+        _btnCancel = new Button
+        {
+            Text = Strings.Cancel,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(80, 30)
+        };
+        _btnSave = new Button
+        {
+            Text = Strings.Save,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(80, 30)
+        };
         _btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
         _btnSave.Click += BtnSave_Click;
         buttonPanel.Controls.Add(_btnCancel);
@@ -150,6 +206,9 @@ public partial class VariableConfigForm : Form
         _table.SetColumnSpan(buttonPanel, 2);
 
         Controls.Add(_table);
+
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     /// <summary>
