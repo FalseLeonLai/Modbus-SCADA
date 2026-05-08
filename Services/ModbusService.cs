@@ -29,6 +29,9 @@ public class ModbusService : IDisposable
     /// <summary>轮询任务引用</summary>
     private Task? _pollTask;
 
+    /// <summary>串行化所有 Modbus 请求，避免单 TCP 连接上请求/响应交错</summary>
+    private readonly SemaphoreSlim _ioLock = new(1, 1);
+
     /// <summary>当前连接状态</summary>
     public bool IsConnected => _tcpClient?.Connected ?? false;
 
@@ -57,31 +60,47 @@ public class ModbusService : IDisposable
     public async Task<bool> ConnectAsync(ConnectionSettings settings)
     {
         // 先断开已有连接
-        Disconnect();
+        await DisconnectAsync().ConfigureAwait(false);
+
+        TcpClient? client = null;
 
         try
         {
             // 创建 TCP 客户端并连接到设备
-            _tcpClient = new TcpClient();
-            await _tcpClient.ConnectAsync(settings.IPAddress, settings.Port);
+            client = new TcpClient
+            {
+                ReceiveTimeout = settings.Timeout,
+                SendTimeout = settings.Timeout
+            };
+            var timeout = TimeSpan.FromMilliseconds(Math.Max(settings.Timeout, 100));
+            await client.ConnectAsync(settings.IPAddress, settings.Port)
+                .WaitAsync(timeout)
+                .ConfigureAwait(false);
 
             // 在 TCP 连接上创建 Modbus 主站
             // NModbus 的 ModbusFactory 会通过 TCP 发送/接收 Modbus 报文
             var factory = new ModbusFactory();
-            _master = factory.CreateMaster(_tcpClient);
+            var master = factory.CreateMaster(client);
 
-            // 设置超时
-            _tcpClient.ReceiveTimeout = settings.Timeout;
-            _tcpClient.SendTimeout = settings.Timeout;
+            await _ioLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                _tcpClient = client;
+                _master = master;
+                client = null;
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
 
             return true; // 连接成功
         }
         catch (Exception)
         {
             // 连接失败，清理资源
-            _tcpClient?.Dispose();
-            _tcpClient = null;
-            _master = null;
+            client?.Dispose();
+            await ClearConnectionAsync().ConfigureAwait(false);
             return false;
         }
     }
@@ -91,13 +110,18 @@ public class ModbusService : IDisposable
     /// </summary>
     public void Disconnect()
     {
-        // 先停止后台轮询
-        StopPoll();
-        // 关闭 TCP 连接
-        _tcpClient?.Close();
-        _tcpClient?.Dispose();
-        _tcpClient = null;
-        _master = null;
+        DisconnectAsync().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// 异步断开连接。会先等待轮询任务退出，再释放 TCP/Modbus 资源。
+    /// </summary>
+    public async Task DisconnectAsync()
+    {
+        var (cts, pollTask) = CancelPoll();
+        CloseConnectionToInterruptIo();
+        await WaitForPollTaskAsync(pollTask, cts).ConfigureAwait(false);
+        await ClearConnectionAsync().ConfigureAwait(false);
     }
 
     // ================================================================
@@ -112,16 +136,17 @@ public class ModbusService : IDisposable
     /// <returns>true/false 或 null（读取失败）</returns>
     public async Task<bool?> ReadCoilAsync(byte slaveId, ushort address)
     {
-        // 检查连接状态和主站对象是否存在
-        if (_master == null || !IsConnected) return null;
+        await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_master == null || !IsConnected) return null;
             // NModbus 的 ReadCoilsAsync: (slaveAddress, startAddress, numberOfPoints)
-            var coils = await _master.ReadCoilsAsync(slaveId, address, 1);
+            var coils = await _master.ReadCoilsAsync(slaveId, address, 1).ConfigureAwait(false);
             // 返回第一个（也是唯一一个）线圈的值
-            return coils[0];
+            return coils.Length > 0 ? coils[0] : null;
         }
         catch { return null; }
+        finally { _ioLock.Release(); }
     }
 
     /// <summary>
@@ -129,13 +154,15 @@ public class ModbusService : IDisposable
     /// </summary>
     public async Task<bool?> ReadDiscreteInputAsync(byte slaveId, ushort address)
     {
-        if (_master == null || !IsConnected) return null;
+        await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            var inputs = await _master.ReadInputsAsync(slaveId, address, 1);
-            return inputs[0];
+            if (_master == null || !IsConnected) return null;
+            var inputs = await _master.ReadInputsAsync(slaveId, address, 1).ConfigureAwait(false);
+            return inputs.Length > 0 ? inputs[0] : null;
         }
         catch { return null; }
+        finally { _ioLock.Release(); }
     }
 
     /// <summary>
@@ -143,14 +170,16 @@ public class ModbusService : IDisposable
     /// </summary>
     public async Task<ushort?> ReadInputRegisterAsync(byte slaveId, ushort address)
     {
-        if (_master == null || !IsConnected) return null;
+        await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_master == null || !IsConnected) return null;
             // ReadInputRegistersAsync: (slaveAddress, startAddress, numberOfPoints)
-            var registers = await _master.ReadInputRegistersAsync(slaveId, address, 1);
-            return registers[0]; // 返回第一个寄存器的值（0-65535）
+            var registers = await _master.ReadInputRegistersAsync(slaveId, address, 1).ConfigureAwait(false);
+            return registers.Length > 0 ? registers[0] : null; // 返回第一个寄存器的值（0-65535）
         }
         catch { return null; }
+        finally { _ioLock.Release(); }
     }
 
     /// <summary>
@@ -158,14 +187,16 @@ public class ModbusService : IDisposable
     /// </summary>
     public async Task<ushort?> ReadHoldingRegisterAsync(byte slaveId, ushort address)
     {
-        if (_master == null || !IsConnected) return null;
+        await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_master == null || !IsConnected) return null;
             // ReadHoldingRegistersAsync 读取保持寄存器
-            var registers = await _master.ReadHoldingRegistersAsync(slaveId, address, 1);
-            return registers[0];
+            var registers = await _master.ReadHoldingRegistersAsync(slaveId, address, 1).ConfigureAwait(false);
+            return registers.Length > 0 ? registers[0] : null;
         }
         catch { return null; }
+        finally { _ioLock.Release(); }
     }
 
     // ================================================================
@@ -181,14 +212,16 @@ public class ModbusService : IDisposable
     /// <returns>写入是否成功</returns>
     public async Task<bool> WriteCoilAsync(byte slaveId, ushort address, bool value)
     {
-        if (_master == null || !IsConnected) return false;
+        await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_master == null || !IsConnected) return false;
             // WriteSingleCoilAsync: (slaveAddress, coilAddress, value)
-            await _master.WriteSingleCoilAsync(slaveId, address, value);
+            await _master.WriteSingleCoilAsync(slaveId, address, value).ConfigureAwait(false);
             return true;
         }
         catch { return false; }
+        finally { _ioLock.Release(); }
     }
 
     /// <summary>
@@ -200,14 +233,16 @@ public class ModbusService : IDisposable
     /// <returns>写入是否成功</returns>
     public async Task<bool> WriteHoldingRegisterAsync(byte slaveId, ushort address, ushort value)
     {
-        if (_master == null || !IsConnected) return false;
+        await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_master == null || !IsConnected) return false;
             // WriteSingleRegisterAsync: (slaveAddress, registerAddress, value)
-            await _master.WriteSingleRegisterAsync(slaveId, address, value);
+            await _master.WriteSingleRegisterAsync(slaveId, address, value).ConfigureAwait(false);
             return true;
         }
         catch { return false; }
+        finally { _ioLock.Release(); }
     }
 
     // ================================================================
@@ -221,13 +256,13 @@ public class ModbusService : IDisposable
     /// <param name="settings">连接设置（需要从站地址）</param>
     public void StartPoll(VariableManager variableManager, ConnectionSettings settings)
     {
+        // 先停止已有的轮询
+        StopPoll();
         // 保存变量管理器引用，供轮询内部使用
         _variableManager = variableManager;
         // 捕获 UI 线程的同步上下文 — StartPoll 由 UI 事件(连接按钮点击)调用,
         // 此时 SynchronizationContext.Current 一定是 WindowsFormsSynchronizationContext
         _uiContext = SynchronizationContext.Current;
-        // 先停止已有的轮询
-        StopPoll();
         // 创建新的取消令牌
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
@@ -240,14 +275,16 @@ public class ModbusService : IDisposable
     /// </summary>
     public void StopPoll()
     {
-        if (_cts != null)
-        {
-            // 发送取消信号
-            _cts.Cancel();
-            _cts.Dispose();
-            _cts = null;
-        }
-        _pollTask = null;
+        StopPollAsync().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// 停止后台轮询，并等待轮询任务观察到取消后退出。
+    /// </summary>
+    public async Task StopPollAsync()
+    {
+        var (cts, pollTask) = CancelPoll();
+        await WaitForPollTaskAsync(pollTask, cts).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -259,62 +296,136 @@ public class ModbusService : IDisposable
     {
         int currentIndex = 0; // 当前轮询的变量索引
 
-        while (!token.IsCancellationRequested)
+        try
         {
-            // 如果未连接或变量列表为空，等待后继续
-            if (!IsConnected || _variableManager == null ||
-                _variableManager.Variables.Count == 0)
+            while (!token.IsCancellationRequested)
             {
-                await Task.Delay(100, token);
-                continue;
-            }
-
-            // 获取当前要读取的变量
-            var variable = _variableManager.Variables[currentIndex];
-
-            // 根据数据类型调用对应的读取方法
-            object? value = variable.DataType switch
-            {
-                ModbusDataType.Coil => await ReadCoilAsync(settings.SlaveId, variable.Address),
-                ModbusDataType.DiscreteInput => await ReadDiscreteInputAsync(settings.SlaveId, variable.Address),
-                ModbusDataType.InputRegister => await ReadInputRegisterAsync(settings.SlaveId, variable.Address),
-                ModbusDataType.HoldingRegister => await ReadHoldingRegisterAsync(settings.SlaveId, variable.Address),
-                _ => null
-            };
-
-            // 更新变量管理器中的值 — 必须切到 UI 线程,否则 BindingList 绑定的
-            // DataGridView 会在后台线程访问 Handle 抛 InvalidOperationException
-            var connected = value != null; // 如果读取成功，value 不为 null
-            // 捕获到局部变量,避免闭包陷阱(currentIndex/value 在循环中会改变)
-            int idxSnapshot = currentIndex;
-            object? valSnapshot = value;
-            bool connSnapshot = connected;
-            var manager = _variableManager;
-            // 闭包捕获 token — Post 的 lambda 在 UI 线程执行时,如果用户已点"断开"
-            // (token 已 Cancel),就不要再写入,否则会覆盖 MarkAllDisconnected 的结果
-            var ctxToken = token;
-            if (_uiContext != null)
-            {
-                _uiContext.Post(_ =>
+                // 如果未连接或变量列表为空，等待后继续
+                if (!IsConnected || _variableManager == null ||
+                    _variableManager.Variables.Count == 0)
                 {
-                    if (ctxToken.IsCancellationRequested) return;
-                    manager?.UpdateValue(idxSnapshot, valSnapshot, connSnapshot);
-                }, null);
+                    await Task.Delay(100, token).ConfigureAwait(false);
+                    continue;
+                }
+
+                var variables = _variableManager.Variables;
+                if (currentIndex >= variables.Count)
+                {
+                    currentIndex = 0;
+                }
+
+                // 获取当前要读取的变量
+                var variable = variables[currentIndex];
+
+                // 根据数据类型调用对应的读取方法
+                object? value = variable.DataType switch
+                {
+                    ModbusDataType.Coil => await ReadCoilAsync(settings.SlaveId, variable.Address).ConfigureAwait(false),
+                    ModbusDataType.DiscreteInput => await ReadDiscreteInputAsync(settings.SlaveId, variable.Address).ConfigureAwait(false),
+                    ModbusDataType.InputRegister => await ReadInputRegisterAsync(settings.SlaveId, variable.Address).ConfigureAwait(false),
+                    ModbusDataType.HoldingRegister => await ReadHoldingRegisterAsync(settings.SlaveId, variable.Address).ConfigureAwait(false),
+                    _ => null
+                };
+
+                // 更新变量管理器中的值 — 必须切到 UI 线程,否则 BindingList 绑定的
+                // DataGridView 会在后台线程访问 Handle 抛 InvalidOperationException
+                var connected = value != null; // 如果读取成功，value 不为 null
+                // 捕获到局部变量,避免闭包陷阱(currentIndex/value 在循环中会改变)
+                int idxSnapshot = currentIndex;
+                object? valSnapshot = value;
+                bool connSnapshot = connected;
+                var manager = _variableManager;
+                // 闭包捕获 token — Post 的 lambda 在 UI 线程执行时,如果用户已点"断开"
+                // (token 已 Cancel),就不要再写入,否则会覆盖 MarkAllDisconnected 的结果
+                var ctxToken = token;
+                if (_uiContext != null)
+                {
+                    _uiContext.Post(_ =>
+                    {
+                        if (ctxToken.IsCancellationRequested) return;
+                        manager?.UpdateValue(idxSnapshot, valSnapshot, connSnapshot);
+                    }, null);
+                }
+                else
+                {
+                    // 兜底: 没有 UI 上下文时同步调用(例如单元测试场景)
+                    manager.UpdateValue(idxSnapshot, valSnapshot, connSnapshot);
+                }
+
+                // 移动到下一个变量（循环遍历）
+                // 数学取模运算: 确保索引在 0 到 Count-1 之间循环
+                var countAfterUpdate = _variableManager?.Variables.Count ?? 0;
+                currentIndex = countAfterUpdate == 0 ? 0 : (currentIndex + 1) % countAfterUpdate;
+
+                // 按当前变量的轮询间隔等待（最小值 50ms 防止 CPU 空转）
+                var delay = Math.Max(variable.PollInterval, 50);
+                await Task.Delay(delay, token).ConfigureAwait(false);
             }
-            else
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 正常停止轮询。
+        }
+    }
+
+    private async Task ClearConnectionAsync()
+    {
+        await _ioLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            _tcpClient?.Close();
+            _tcpClient?.Dispose();
+            _tcpClient = null;
+            _master = null;
+        }
+        finally
+        {
+            _ioLock.Release();
+        }
+    }
+
+    private (CancellationTokenSource? Cts, Task? PollTask) CancelPoll()
+    {
+        var cts = _cts;
+        var pollTask = _pollTask;
+        _cts = null;
+        _pollTask = null;
+        cts?.Cancel();
+        return (cts, pollTask);
+    }
+
+    private static async Task WaitForPollTaskAsync(Task? pollTask, CancellationTokenSource? cts)
+    {
+        try
+        {
+            if (pollTask != null)
             {
-                // 兜底: 没有 UI 上下文时同步调用(例如单元测试场景)
-                manager.UpdateValue(idxSnapshot, valSnapshot, connSnapshot);
+                await pollTask.ConfigureAwait(false);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // 轮询任务按预期响应取消。
+        }
+        catch (ObjectDisposedException) when (cts?.IsCancellationRequested == true)
+        {
+            // 断开连接期间底层资源已释放，视为取消收尾。
+        }
+        finally
+        {
+            cts?.Dispose();
+        }
+    }
 
-            // 移动到下一个变量（循环遍历）
-            // 数学取模运算: 确保索引在 0 到 Count-1 之间循环
-            int nextIndex = (currentIndex + 1) % _variableManager.Variables.Count;
-            currentIndex = nextIndex;
-
-            // 按当前变量的轮询间隔等待（最小值 50ms 防止 CPU 空转）
-            var delay = Math.Max(variable.PollInterval, 50);
-            await Task.Delay(delay, token);
+    private void CloseConnectionToInterruptIo()
+    {
+        try
+        {
+            _tcpClient?.Close();
+        }
+        catch
+        {
+            // 断开流程里关闭 socket 只是为了打断阻塞 I/O，失败后仍会进入资源清理。
         }
     }
 
@@ -329,5 +440,6 @@ public class ModbusService : IDisposable
     {
         Disconnect();
         _cts?.Dispose();
+        _ioLock.Dispose();
     }
 }

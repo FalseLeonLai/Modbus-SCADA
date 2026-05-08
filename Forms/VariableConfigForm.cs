@@ -14,18 +14,15 @@ namespace ModbusSCADA.Forms;
 public partial class VariableConfigForm : Form
 {
     // ---------- 控件声明 ----------
-    private Label _lblName, _lblAddress, _lblDataType, _lblPollInterval;
-    private TextBox _txtName, _txtAddress, _txtPollInterval;
-    private ComboBox _cboDataType;
-    private CheckBox _chkCanWrite;
-    private Button _btnSave, _btnCancel;
-    private TableLayoutPanel _table;
+    private Label _lblName = null!, _lblAddress = null!, _lblDataType = null!, _lblPollInterval = null!;
+    private TextBox _txtName = null!, _txtAddress = null!, _txtPollInterval = null!;
+    private ComboBox _cboDataType = null!;
+    private CheckBox _chkCanWrite = null!;
+    private Button _btnSave = null!, _btnCancel = null!;
+    private TableLayoutPanel _table = null!;
 
     /// <summary>配置后的变量对象（调用者读取使用）</summary>
     public ModbusVariable Result { get; private set; }
-
-    /// <summary>是否为编辑模式（true=编辑，false=新增）</summary>
-    private readonly bool _isEditMode;
 
     /// <summary>已有的变量名称列表（用于重名检查）</summary>
     private readonly List<string> _existingNames;
@@ -36,7 +33,6 @@ public partial class VariableConfigForm : Form
     /// <param name="existingNames">已存在的变量名称列表，用于检查重名</param>
     public VariableConfigForm(List<string> existingNames)
     {
-        _isEditMode = false;
         _existingNames = existingNames;
         Result = new ModbusVariable(); // 空变量，用户填写
         InitializeForm();
@@ -49,7 +45,6 @@ public partial class VariableConfigForm : Form
     /// <param name="existingNames">已存在的变量名称列表（排除自身）</param>
     public VariableConfigForm(ModbusVariable variable, List<string> existingNames)
     {
-        _isEditMode = true;
         _existingNames = existingNames.Where(n => n != variable.Name).ToList();
         // 复制变量，不直接修改原对象
         Result = new ModbusVariable
@@ -223,8 +218,8 @@ public partial class VariableConfigForm : Form
         // 选中对应的数据类型
         for (int i = 0; i < _cboDataType.Items.Count; i++)
         {
-            var kv = (KeyValuePair<string, ModbusDataType>)_cboDataType.Items[i];
-            if (kv.Value == Result.DataType)
+            if (_cboDataType.Items[i] is KeyValuePair<string, ModbusDataType> kv &&
+                kv.Value == Result.DataType)
             {
                 _cboDataType.SelectedIndex = i;
                 break;

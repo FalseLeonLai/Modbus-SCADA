@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ModbusSCADA</RootNamespace>
     <NeutralLanguage>zh-CN</NeutralLanguage>
+    <IsTestProject>false</IsTestProject>
     <!-- 全局强制 UTF-8 编码 -->
     <SatelliteResourceLanguages>zh-CN;en;ru</SatelliteResourceLanguages>
   </PropertyGroup>
@@ -17,6 +18,12 @@
     <PackageReference Include="NModbus" Version="3.0.81" />
     <!-- JSON 序列化 -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Modbus-SCADA.Tests\**\*.cs" />
+    <EmbeddedResource Remove="Modbus-SCADA.Tests\**\*" />
+    <None Remove="Modbus-SCADA.Tests\**\*" />
   </ItemGroup>
 
   <!-- 确保所有 .cs 文件以 UTF-8 保存 -->

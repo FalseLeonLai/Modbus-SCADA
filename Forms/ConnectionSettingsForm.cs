@@ -15,11 +15,11 @@ namespace ModbusSCADA.Forms;
 public partial class ConnectionSettingsForm : Form
 {
     // ---------- 控件声明 ----------
-    private Label _lblIP, _lblPort, _lblSlaveId, _lblTimeout, _lblReconnectInterval, _lblLanguage;
-    private TextBox _txtIP, _txtPort, _txtSlaveId, _txtTimeout, _txtReconnectInterval;
-    private ComboBox _cboLanguage;
-    private Button _btnSave, _btnCancel;
-    private TableLayoutPanel _table;
+    private Label _lblIP = null!, _lblPort = null!, _lblSlaveId = null!, _lblTimeout = null!, _lblReconnectInterval = null!, _lblLanguage = null!;
+    private TextBox _txtIP = null!, _txtPort = null!, _txtSlaveId = null!, _txtTimeout = null!, _txtReconnectInterval = null!;
+    private ComboBox _cboLanguage = null!;
+    private Button _btnSave = null!, _btnCancel = null!;
+    private TableLayoutPanel _table = null!;
 
     /// <summary>编辑后的连接设置（由调用者读取）</summary>
     public ConnectionSettings Settings { get; private set; }
@@ -192,8 +192,8 @@ public partial class ConnectionSettingsForm : Form
         // 设置语言下拉框选中项
         for (int i = 0; i < _cboLanguage.Items.Count; i++)
         {
-            var kv = (KeyValuePair<string, string>)_cboLanguage.Items[i];
-            if (kv.Key == Settings.Language)
+            if (_cboLanguage.Items[i] is KeyValuePair<string, string> kv &&
+                kv.Key == Settings.Language)
             {
                 _cboLanguage.SelectedIndex = i;
                 break;

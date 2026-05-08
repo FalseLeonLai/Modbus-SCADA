@@ -34,3 +34,4 @@ TestResults/
 Thumbs.db
 
 .fake
+.claude/worktrees/
