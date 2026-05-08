@@ -48,6 +48,20 @@ public class ModbusService : IDisposable
     /// </remarks>
     private SynchronizationContext? _uiContext;
 
+    /// <summary>连接丢失事件去重标志: 0 = 未触发, 1 = 已触发</summary>
+    /// <remarks>
+    /// 服务器主动断开后会有多次连续的读/写失败,但 ConnectionLost 只应触发一次,
+    /// 避免 UI 反复弹窗或重置状态。用 Interlocked 保证多线程下的原子性。
+    /// 用户主动 DisconnectAsync 时也置 1, 抑制竞态期间的虚假事件。
+    /// </remarks>
+    private int _connectionLostRaised;
+
+    /// <summary>
+    /// 服务器异常断开事件 — 仅在轮询/读写检测到 socket 失活时触发,
+    /// 用户主动 DisconnectAsync 不会触发。已通过 _uiContext 切回 UI 线程。
+    /// </summary>
+    public event EventHandler? ConnectionLost;
+
     // ================================================================
     // 连接 / 断开
     // ================================================================
@@ -85,6 +99,9 @@ public class ModbusService : IDisposable
             await _ioLock.WaitAsync().ConfigureAwait(false);
             try
             {
+                // 必须在装载新 _tcpClient/_master 之前重置标志,确保任何感知到新连接的
+                // 读/写在出错时都能再次触发 ConnectionLost(否则上一次断线会永久抑制本次)。
+                Interlocked.Exchange(ref _connectionLostRaised, 0);
                 _tcpClient = client;
                 _master = master;
                 client = null;
@@ -118,6 +135,10 @@ public class ModbusService : IDisposable
     /// </summary>
     public async Task DisconnectAsync()
     {
+        // 用户主动断开 — 先吃掉 ConnectionLost 触发权,否则下面 CloseConnectionToInterruptIo
+        // 会让在飞读/写抛 ObjectDisposedException, finally 里的 HandlePossibleConnectionLoss
+        // 会误把"用户断开"识别成"服务器断开"并触发事件,导致 UI 重复弹错或状态错乱。
+        Interlocked.Exchange(ref _connectionLostRaised, 1);
         var (cts, pollTask) = CancelPoll();
         CloseConnectionToInterruptIo();
         await WaitForPollTaskAsync(pollTask, cts).ConfigureAwait(false);
@@ -136,6 +157,7 @@ public class ModbusService : IDisposable
     /// <returns>true/false 或 null（读取失败）</returns>
     public async Task<bool?> ReadCoilAsync(byte slaveId, ushort address)
     {
+        bool ioFailed = false;
         await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -145,8 +167,14 @@ public class ModbusService : IDisposable
             // 返回第一个（也是唯一一个）线圈的值
             return coils.Length > 0 ? coils[0] : null;
         }
-        catch { return null; }
-        finally { _ioLock.Release(); }
+        catch { ioFailed = true; return null; }
+        finally
+        {
+            _ioLock.Release();
+            // 锁外触发 — 否则 HandlePossibleConnectionLoss 可能再次入锁(经 ClearConnection)
+            // 形成不必要的串行点。锁外执行也能让事件回调更快返回。
+            if (ioFailed) HandlePossibleConnectionLoss();
+        }
     }
 
     /// <summary>
@@ -154,6 +182,7 @@ public class ModbusService : IDisposable
     /// </summary>
     public async Task<bool?> ReadDiscreteInputAsync(byte slaveId, ushort address)
     {
+        bool ioFailed = false;
         await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -161,8 +190,12 @@ public class ModbusService : IDisposable
             var inputs = await _master.ReadInputsAsync(slaveId, address, 1).ConfigureAwait(false);
             return inputs.Length > 0 ? inputs[0] : null;
         }
-        catch { return null; }
-        finally { _ioLock.Release(); }
+        catch { ioFailed = true; return null; }
+        finally
+        {
+            _ioLock.Release();
+            if (ioFailed) HandlePossibleConnectionLoss();
+        }
     }
 
     /// <summary>
@@ -170,6 +203,7 @@ public class ModbusService : IDisposable
     /// </summary>
     public async Task<ushort?> ReadInputRegisterAsync(byte slaveId, ushort address)
     {
+        bool ioFailed = false;
         await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -178,8 +212,12 @@ public class ModbusService : IDisposable
             var registers = await _master.ReadInputRegistersAsync(slaveId, address, 1).ConfigureAwait(false);
             return registers.Length > 0 ? registers[0] : null; // 返回第一个寄存器的值（0-65535）
         }
-        catch { return null; }
-        finally { _ioLock.Release(); }
+        catch { ioFailed = true; return null; }
+        finally
+        {
+            _ioLock.Release();
+            if (ioFailed) HandlePossibleConnectionLoss();
+        }
     }
 
     /// <summary>
@@ -187,6 +225,7 @@ public class ModbusService : IDisposable
     /// </summary>
     public async Task<ushort?> ReadHoldingRegisterAsync(byte slaveId, ushort address)
     {
+        bool ioFailed = false;
         await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -195,8 +234,12 @@ public class ModbusService : IDisposable
             var registers = await _master.ReadHoldingRegistersAsync(slaveId, address, 1).ConfigureAwait(false);
             return registers.Length > 0 ? registers[0] : null;
         }
-        catch { return null; }
-        finally { _ioLock.Release(); }
+        catch { ioFailed = true; return null; }
+        finally
+        {
+            _ioLock.Release();
+            if (ioFailed) HandlePossibleConnectionLoss();
+        }
     }
 
     // ================================================================
@@ -212,6 +255,7 @@ public class ModbusService : IDisposable
     /// <returns>写入是否成功</returns>
     public async Task<bool> WriteCoilAsync(byte slaveId, ushort address, bool value)
     {
+        bool ioFailed = false;
         await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -220,8 +264,12 @@ public class ModbusService : IDisposable
             await _master.WriteSingleCoilAsync(slaveId, address, value).ConfigureAwait(false);
             return true;
         }
-        catch { return false; }
-        finally { _ioLock.Release(); }
+        catch { ioFailed = true; return false; }
+        finally
+        {
+            _ioLock.Release();
+            if (ioFailed) HandlePossibleConnectionLoss();
+        }
     }
 
     /// <summary>
@@ -233,6 +281,7 @@ public class ModbusService : IDisposable
     /// <returns>写入是否成功</returns>
     public async Task<bool> WriteHoldingRegisterAsync(byte slaveId, ushort address, ushort value)
     {
+        bool ioFailed = false;
         await _ioLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -241,8 +290,12 @@ public class ModbusService : IDisposable
             await _master.WriteSingleRegisterAsync(slaveId, address, value).ConfigureAwait(false);
             return true;
         }
-        catch { return false; }
-        finally { _ioLock.Release(); }
+        catch { ioFailed = true; return false; }
+        finally
+        {
+            _ioLock.Release();
+            if (ioFailed) HandlePossibleConnectionLoss();
+        }
     }
 
     // ================================================================
@@ -300,6 +353,15 @@ public class ModbusService : IDisposable
         {
             while (!token.IsCancellationRequested)
             {
+                // 心跳探测 — 即使没有变量需要轮询,也要主动检测 socket 是否还活着,
+                // 否则用户没配变量时服务器断线永远检测不到。Poll 是非阻塞的本地系统调用,
+                // 开销极低,每次循环都做也无性能问题。
+                var clientSnapshot = _tcpClient;
+                if (clientSnapshot != null && !IsSocketAlive(clientSnapshot))
+                {
+                    HandlePossibleConnectionLoss();
+                }
+
                 // 如果未连接或变量列表为空，等待后继续
                 if (!IsConnected || _variableManager == null ||
                     _variableManager.Variables.Count == 0)
@@ -381,6 +443,76 @@ public class ModbusService : IDisposable
         finally
         {
             _ioLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 真正可靠地探测 TCP socket 是否还活着。
+    /// </summary>
+    /// <remarks>
+    /// .NET 的 <c>TcpClient.Connected</c> 只反映上一次 I/O 的状态,
+    /// 服务器主动 FIN 后客户端 Connected 仍可能为 true 直到下一次 I/O。
+    /// 标准做法: <c>Poll(0, SelectRead)</c> 在以下情况返回 true —
+    /// (a) 有可读数据 (b) 连接已关闭 (c) socket 出错;
+    /// 配合 <c>Available == 0</c> 即可判断"对端已关闭"。
+    /// </remarks>
+    private static bool IsSocketAlive(TcpClient? client)
+    {
+        var socket = client?.Client;
+        if (socket == null) return false;
+        try
+        {
+            bool closedOrError = socket.Poll(0, SelectMode.SelectRead);
+            return !(closedOrError && socket.Available == 0);
+        }
+        catch (ObjectDisposedException) { return false; }
+        catch (SocketException) { return false; }
+    }
+
+    /// <summary>
+    /// 在读/写失败的 finally 中调用 — 探测 socket 是否真的断了,
+    /// 是则触发一次性的 ConnectionLost 事件并把所有变量标记为通信异常。
+    /// </summary>
+    /// <remarks>
+    /// 区分"瞬时协议错误"和"连接断开"的关键: 用 <c>IsSocketAlive</c> 实测,
+    /// 而不是依赖 <c>TcpClient.Connected</c>。这样即使是 SlaveException
+    /// 这类协议层异常,只要 TCP 还活着,就不会误触连接丢失流程。
+    /// </remarks>
+    private void HandlePossibleConnectionLoss()
+    {
+        var client = _tcpClient;
+        if (client == null) return;            // 已被清理过,无需再发
+        if (IsSocketAlive(client)) return;     // 协议错误 / 瞬时异常,连接仍在
+
+        // 用 Exchange 确保只有第一次断线检测者会发事件,后续重复失败全部去重
+        if (Interlocked.Exchange(ref _connectionLostRaised, 1) != 0) return;
+
+        NotifyConnectionLostUi();
+    }
+
+    private void NotifyConnectionLostUi()
+    {
+        var ctx = _uiContext;
+        var manager = _variableManager;
+        var handler = ConnectionLost;
+
+        void Raise()
+        {
+            // 立即把所有变量置为通信异常 + 清空数值,避免 UI 显示陈旧绿"正常"和老数据。
+            // 在 UI 订阅者处理 ConnectionLost 之前完成,确保 DataGridView 已经反映状态。
+            manager?.MarkAllDisconnected();
+            handler?.Invoke(this, EventArgs.Empty);
+        }
+
+        if (ctx != null)
+        {
+            // 切回 UI 线程: BindingList.ResetItem 必须在 UI 线程调用,否则跨线程 Handle 异常
+            ctx.Post(_ => Raise(), null);
+        }
+        else
+        {
+            // 单元测试场景: 没有 SyncContext, 同步执行
+            Raise();
         }
     }
 
