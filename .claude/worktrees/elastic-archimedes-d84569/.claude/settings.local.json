@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git -C \"D:\\\\project\\\\AI\\\\Modbus-SCADA\\\\.claude\\\\worktrees\\\\elastic-archimedes-d84569\" update-index --refresh)"
-    ]
-  }
-}

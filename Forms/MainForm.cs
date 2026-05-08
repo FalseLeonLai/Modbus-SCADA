@@ -29,6 +29,9 @@ public partial class MainForm : Form
     /// <summary>当前连接设置（运行时可变）</summary>
     private ConnectionSettings _settings;
 
+    /// <summary>防止快速重复点击连接按钮造成并发连接</summary>
+    private bool _isConnecting;
+
     // ================================================================
     // UI 控件
     // ================================================================
@@ -324,6 +327,22 @@ public partial class MainForm : Form
         };
     }
 
+    private void SetVariableEditCommandsEnabled(bool enabled)
+    {
+        _btnAdd.Enabled = enabled;
+        _btnEdit.Enabled = enabled;
+        _btnDelete.Enabled = enabled;
+        _btnImport.Enabled = enabled;
+    }
+
+    private bool CanModifyVariables()
+    {
+        if (!_modbusService.IsConnected && !_isConnecting) return true;
+
+        ShowWarning(Strings.MsgDisconnectFirst);
+        return false;
+    }
+
     // ================================================================
     // DataGridView 数据绑定与格式化
     // ================================================================
@@ -354,37 +373,47 @@ public partial class MainForm : Form
 
     private void ConfigureVariableGridColumns()
     {
-        if (_dgvVariables.Columns["LastReadTime"] is DataGridViewColumn lastCol)
-            lastCol.Visible = false;
+        var previousAutoSizeMode = _dgvVariables.AutoSizeColumnsMode;
+        _dgvVariables.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
-        // 替换自动生成的 IsConnected (CheckBoxColumn) 为 TextBoxColumn —
-        // 否则 CellFormatting 把 e.Value 改成本地化字符串("正常"/"异常")时,
-        // CheckBoxColumn 会试图把字符串解析回 bool 抛 FormatException。
-        // 该方法可能被语言切换二次调用,先判断是否已是 TextBoxColumn 避免重复替换。
-        if (_dgvVariables.Columns["IsConnected"] is DataGridViewCheckBoxColumn oldStatusCol)
+        try
         {
-            int displayIndex = oldStatusCol.DisplayIndex;
-            _dgvVariables.Columns.Remove(oldStatusCol);
-            var statusCol = new DataGridViewTextBoxColumn
-            {
-                Name = "IsConnected",
-                DataPropertyName = "IsConnected",
-                ReadOnly = true
-            };
-            _dgvVariables.Columns.Add(statusCol);
-            if (displayIndex >= 0 && displayIndex < _dgvVariables.Columns.Count)
-                statusCol.DisplayIndex = displayIndex;
-        }
+            if (_dgvVariables.Columns["LastReadTime"] is DataGridViewColumn lastCol)
+                lastCol.Visible = false;
 
-        // MinimumWidth 留出充裕空间给中/英/俄文标题(含排序箭头/Padding 大约 + 30px),
-        // 避免在高 DPI 下因字体放大但 MinimumWidth 不缩放导致列头文字被裁剪
-        ConfigureColumn("Name", Strings.ColName, 22, 140);
-        ConfigureColumn("Address", Strings.ColAddress, 10, 100);
-        ConfigureColumn("DataType", Strings.ColDataType, 14, 130);
-        ConfigureColumn("CanWrite", Strings.ColCanWrite, 8, 90);
-        ConfigureColumn("PollInterval", Strings.ColInterval, 16, 160);
-        ConfigureColumn("CurrentValue", Strings.ColValue, 12, 110);
-        ConfigureColumn("IsConnected", Strings.ColStatus, 14, 130);
+            // 替换自动生成的 IsConnected (CheckBoxColumn) 为 TextBoxColumn —
+            // 否则 CellFormatting 把 e.Value 改成本地化字符串("正常"/"异常")时,
+            // CheckBoxColumn 会试图把字符串解析回 bool 抛 FormatException。
+            // 该方法可能被语言切换二次调用,先判断是否已是 TextBoxColumn 避免重复替换。
+            if (_dgvVariables.Columns["IsConnected"] is DataGridViewCheckBoxColumn oldStatusCol)
+            {
+                int displayIndex = oldStatusCol.DisplayIndex;
+                _dgvVariables.Columns.Remove(oldStatusCol);
+                var statusCol = new DataGridViewTextBoxColumn
+                {
+                    Name = "IsConnected",
+                    DataPropertyName = "IsConnected",
+                    ReadOnly = true
+                };
+                _dgvVariables.Columns.Add(statusCol);
+                if (displayIndex >= 0 && displayIndex < _dgvVariables.Columns.Count)
+                    statusCol.DisplayIndex = displayIndex;
+            }
+
+            // MinimumWidth 留出充裕空间给中/英/俄文标题(含排序箭头/Padding 大约 + 30px),
+            // 避免在高 DPI 下因字体放大但 MinimumWidth 不缩放导致列头文字被裁剪
+            ConfigureColumn("Name", Strings.ColName, 22, 140);
+            ConfigureColumn("Address", Strings.ColAddress, 10, 100);
+            ConfigureColumn("DataType", Strings.ColDataType, 14, 130);
+            ConfigureColumn("CanWrite", Strings.ColCanWrite, 8, 90);
+            ConfigureColumn("PollInterval", Strings.ColInterval, 16, 160);
+            ConfigureColumn("CurrentValue", Strings.ColValue, 12, 110);
+            ConfigureColumn("IsConnected", Strings.ColStatus, 14, 130);
+        }
+        finally
+        {
+            _dgvVariables.AutoSizeColumnsMode = previousAutoSizeMode;
+        }
     }
 
     private void ConfigureColumn(string name, string headerText, float fillWeight, int minimumWidth)
@@ -435,44 +464,81 @@ public partial class MainForm : Form
     /// </summary>
     private async void BtnConnect_Click(object? sender, EventArgs e)
     {
-        var success = await _modbusService.ConnectAsync(_settings);
+        if (_isConnecting || _modbusService.IsConnected) return;
 
-        if (success)
+        _isConnecting = true;
+        _btnConnect.Enabled = false;
+        try
         {
-            // 更新 UI 状态
-            _lblStatusValue.Text = $"{Strings.Connected} {_settings.IPAddress}:{_settings.Port}";
-            _lblStatusValue.ForeColor = Color.Green;
-            _btnConnect.Enabled = false;
-            _btnDisconnect.Enabled = true;
+            var success = await _modbusService.ConnectAsync(_settings);
 
-            // 启动后台轮询
-            _modbusService.StartPoll(_variableManager, _settings);
+            if (success)
+            {
+                // 更新 UI 状态
+                _lblStatusValue.Text = $"{Strings.Connected} {_settings.IPAddress}:{_settings.Port}";
+                _lblStatusValue.ForeColor = Color.Green;
+                _btnDisconnect.Enabled = true;
+                SetVariableEditCommandsEnabled(false);
 
-            // 状态栏提示
-            ShowInfo(Strings.MsgConnectSuccess);
+                // 启动后台轮询
+                _modbusService.StartPoll(_variableManager, _settings);
+
+                // 状态栏提示
+                ShowInfo(Strings.MsgConnectSuccess);
+            }
+            else
+            {
+                _btnConnect.Enabled = true;
+                ShowError(Strings.MsgConnectFail);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            ShowError(Strings.MsgConnectFail);
+            _btnConnect.Enabled = true;
+            _btnDisconnect.Enabled = false;
+            SetVariableEditCommandsEnabled(true);
+            ShowError($"{Strings.MsgConnectFail}: {ex.Message}");
+        }
+        finally
+        {
+            _isConnecting = false;
+            if (!_modbusService.IsConnected)
+            {
+                _btnConnect.Enabled = true;
+                _btnDisconnect.Enabled = false;
+                SetVariableEditCommandsEnabled(true);
+            }
         }
     }
 
     /// <summary>
     /// "断开" 按钮 — 断开连接并停止后台轮询
     /// </summary>
-    private void BtnDisconnect_Click(object? sender, EventArgs e)
+    private async void BtnDisconnect_Click(object? sender, EventArgs e)
     {
-        _modbusService.Disconnect();
-
-        // 把所有变量标记为通信断开 — 否则 IsConnected 列会保持上次轮询的"正常"状态,
-        // 让用户误以为还在通信
-        _variableManager.MarkAllDisconnected();
-
-        // 更新 UI 状态
-        _lblStatusValue.Text = Strings.NotConnected;
-        _lblStatusValue.ForeColor = Color.Red;
-        _btnConnect.Enabled = true;
         _btnDisconnect.Enabled = false;
+        try
+        {
+            await _modbusService.DisconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            // 把所有变量标记为通信断开 — 否则 IsConnected 列会保持上次轮询的"正常"状态,
+            // 让用户误以为还在通信
+            _variableManager.MarkAllDisconnected();
+
+            // 更新 UI 状态
+            _lblStatusValue.Text = Strings.NotConnected;
+            _lblStatusValue.ForeColor = Color.Red;
+            _btnConnect.Enabled = true;
+            _btnDisconnect.Enabled = false;
+            SetVariableEditCommandsEnabled(true);
+            DgvVariables_SelectionChanged(this, EventArgs.Empty);
+        }
     }
 
     /// <summary>
@@ -532,6 +598,8 @@ public partial class MainForm : Form
     /// </summary>
     private void BtnAdd_Click(object? sender, EventArgs e)
     {
+        if (!CanModifyVariables()) return;
+
         // 收集当前已有的变量名称
         var names = _variableManager.Variables.Select(v => v.Name).ToList();
         using var form = new VariableConfigForm(names);
@@ -548,6 +616,8 @@ public partial class MainForm : Form
     /// </summary>
     private void BtnEdit_Click(object? sender, EventArgs e)
     {
+        if (!CanModifyVariables()) return;
+
         // 确保有选中行
         if (_dgvVariables.SelectedRows.Count == 0)
         {
@@ -585,6 +655,8 @@ public partial class MainForm : Form
     /// </summary>
     private void BtnDelete_Click(object? sender, EventArgs e)
     {
+        if (!CanModifyVariables()) return;
+
         if (_dgvVariables.SelectedRows.Count == 0)
         {
             ShowWarning(Strings.MsgSelectVariable);
@@ -610,6 +682,8 @@ public partial class MainForm : Form
     /// </summary>
     private void BtnImport_Click(object? sender, EventArgs e)
     {
+        if (!CanModifyVariables()) return;
+
         using var dialog = new OpenFileDialog
         {
             Title = Strings.ImportVariables,
@@ -717,6 +791,12 @@ public partial class MainForm : Form
     /// </summary>
     private async void BtnWrite_Click(object? sender, EventArgs e)
     {
+        if (!_modbusService.IsConnected)
+        {
+            ShowWarning(Strings.MsgDisconnectFirst);
+            return;
+        }
+
         // 校验选中
         if (_dgvVariables.SelectedRows.Count == 0) return;
         var index = _dgvVariables.SelectedRows[0].Index;
@@ -732,48 +812,61 @@ public partial class MainForm : Form
 
         bool success = false;
 
-        // 根据数据类型执行写入
-        switch (variable.DataType)
+        _btnWrite.Enabled = false;
+        try
         {
-            case ModbusDataType.Coil:
-                // Coil 类型: 用户输入 true/false, 1/0, ON/OFF
-                if (ParseBoolInput(_txtWriteValue.Text, out bool coilVal))
-                {
-                    success = await _modbusService.WriteCoilAsync(_settings.SlaveId, variable.Address, coilVal);
-                    if (success)
+            // 根据数据类型执行写入
+            switch (variable.DataType)
+            {
+                case ModbusDataType.Coil:
+                    // Coil 类型: 用户输入 true/false, 1/0, ON/OFF
+                    if (ParseBoolInput(_txtWriteValue.Text, out bool coilVal))
                     {
-                        variable.CurrentValue = coilVal;
-                        _variableManager.Variables.ResetItem(index);
+                        success = await _modbusService.WriteCoilAsync(_settings.SlaveId, variable.Address, coilVal);
+                        if (success)
+                        {
+                            variable.CurrentValue = coilVal;
+                            _variableManager.Variables.ResetItem(index);
+                        }
                     }
-                }
-                else
-                {
-                    ShowWarning("请输入: ON / OFF / 1 / 0 / true / false");
-                    return;
-                }
-                break;
-
-            case ModbusDataType.HoldingRegister:
-                // 保持寄存器: 用户输入 0-65535 的整数
-                if (ushort.TryParse(_txtWriteValue.Text, out ushort regVal))
-                {
-                    success = await _modbusService.WriteHoldingRegisterAsync(_settings.SlaveId, variable.Address, regVal);
-                    if (success)
+                    else
                     {
-                        variable.CurrentValue = regVal;
-                        _variableManager.Variables.ResetItem(index);
+                        ShowWarning("请输入: ON / OFF / 1 / 0 / true / false");
+                        return;
                     }
-                }
-                else
-                {
-                    ShowWarning("请输入 0-65535 之间的整数");
-                    return;
-                }
-                break;
+                    break;
 
-            default:
-                ShowWarning(Strings.MsgCantWriteReadOnly);
-                return;
+                case ModbusDataType.HoldingRegister:
+                    // 保持寄存器: 用户输入 0-65535 的整数
+                    if (ushort.TryParse(_txtWriteValue.Text, out ushort regVal))
+                    {
+                        success = await _modbusService.WriteHoldingRegisterAsync(_settings.SlaveId, variable.Address, regVal);
+                        if (success)
+                        {
+                            variable.CurrentValue = regVal;
+                            _variableManager.Variables.ResetItem(index);
+                        }
+                    }
+                    else
+                    {
+                        ShowWarning("请输入 0-65535 之间的整数");
+                        return;
+                    }
+                    break;
+
+                default:
+                    ShowWarning(Strings.MsgCantWriteReadOnly);
+                    return;
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError($"{Strings.MsgWriteFail}: {ex.Message}");
+            return;
+        }
+        finally
+        {
+            DgvVariables_SelectionChanged(this, EventArgs.Empty);
         }
 
         // 提示写入结果

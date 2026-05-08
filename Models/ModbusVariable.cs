@@ -4,6 +4,8 @@
 // 适用: 完全不懂英文和C#的小白 — 每个英文名都有中文注释
 // ============================================================
 
+using Newtonsoft.Json;
+
 namespace ModbusSCADA.Models;
 
 /// <summary>
@@ -51,11 +53,14 @@ public class ModbusVariable
     // ---------- 运行时状态 ----------
 
     /// <summary>上一次读取到的值（object 类型，可存储 BOOL 或 ushort）</summary>
+    [JsonIgnore]
     public object? CurrentValue { get; set; }
 
     /// <summary>最后一次读取时间</summary>
+    [JsonIgnore]
     public DateTime LastReadTime { get; set; } = DateTime.MinValue;
 
     /// <summary>通信是否正常（读写成功设为 true，失败设为 false）</summary>
+    [JsonIgnore]
     public bool IsConnected { get; set; }
 }

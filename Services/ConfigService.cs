@@ -16,13 +16,33 @@ public static class ConfigService
 {
     // ---------- 配置文件路径 ----------
 
+    private const string AppDataFolderName = "Modbus-SCADA";
+    private static string? _configDirectoryOverride;
+
+    /// <summary>配置文件目录，默认位于当前用户的 AppData。</summary>
+    public static string ConfigDirectory =>
+        _configDirectoryOverride ??
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            AppDataFolderName);
+
     /// <summary>连接设置配置文件的完整路径（conn-settings.json）</summary>
-    private static readonly string ConnSettingsPath =
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "conn-settings.json");
+    private static string ConnSettingsPath =>
+        Path.Combine(ConfigDirectory, "conn-settings.json");
 
     /// <summary>变量列表配置文件的完整路径（variables.json）</summary>
-    private static readonly string VariablesPath =
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "variables.json");
+    private static string VariablesPath =>
+        Path.Combine(ConfigDirectory, "variables.json");
+
+    /// <summary>
+    /// 测试专用：注入配置目录。传入 null 可恢复默认 AppData 目录。
+    /// </summary>
+    public static void SetConfigDirectoryForTesting(string? directory)
+    {
+        _configDirectoryOverride = string.IsNullOrWhiteSpace(directory)
+            ? null
+            : Path.GetFullPath(directory);
+    }
 
     // ================================================================
     // 连接设置 → 读写 conn-settings.json
@@ -34,19 +54,23 @@ public static class ConfigService
     /// </summary>
     public static ConnectionSettings LoadConnectionSettings()
     {
-        // 检查配置文件是否存在
-        if (!File.Exists(ConnSettingsPath))
+        var path = ConnSettingsPath;
+        if (!File.Exists(path))
         {
-            // 不存在就返回默认值（127.0.0.1:502，站号1，中文）
             return new ConnectionSettings();
         }
 
-        // 读取 JSON 文本
-        var json = File.ReadAllText(ConnSettingsPath);
-        // 反序列化为 ConnectionSettings 对象
-        // ?? 后面的意思是：如果反序列化结果是 null，就用默认值
-        return JsonConvert.DeserializeObject<ConnectionSettings>(json)
-               ?? new ConnectionSettings();
+        try
+        {
+            var json = File.ReadAllText(path, System.Text.Encoding.UTF8);
+            return JsonConvert.DeserializeObject<ConnectionSettings>(json)
+                   ?? new ConnectionSettings();
+        }
+        catch (Exception ex) when (IsConfigReadException(ex))
+        {
+            BackupBadConfig(path);
+            return new ConnectionSettings();
+        }
     }
 
     /// <summary>
@@ -55,10 +79,8 @@ public static class ConfigService
     /// <param name="settings">需要保存的连接设置对象</param>
     public static void SaveConnectionSettings(ConnectionSettings settings)
     {
-        // 序列化为格式化的 JSON（缩进易读）
         var json = JsonConvert.SerializeObject(settings, Formatting.Indented);
-        // 以 UTF-8 编码写入文件
-        File.WriteAllText(ConnSettingsPath, json, System.Text.Encoding.UTF8);
+        WriteAllTextAtomically(ConnSettingsPath, json);
     }
 
     // ================================================================
@@ -71,17 +93,24 @@ public static class ConfigService
     /// </summary>
     public static List<ModbusVariable> LoadVariables()
     {
-        // 检查配置文件是否存在
-        if (!File.Exists(VariablesPath))
+        var path = VariablesPath;
+        if (!File.Exists(path))
         {
-            // 不存在就返回空列表（程序首次运行，用户自己添加变量）
             return new List<ModbusVariable>();
         }
 
-        // 读取 JSON 并反序列化为变量列表
-        var json = File.ReadAllText(VariablesPath);
-        return JsonConvert.DeserializeObject<List<ModbusVariable>>(json)
-               ?? new List<ModbusVariable>();
+        try
+        {
+            var json = File.ReadAllText(path, System.Text.Encoding.UTF8);
+            return JsonConvert.DeserializeObject<List<ModbusVariable>>(json)?
+                .Where(v => v != null)
+                .ToList() ?? new List<ModbusVariable>();
+        }
+        catch (Exception ex) when (IsConfigReadException(ex))
+        {
+            BackupBadConfig(path);
+            return new List<ModbusVariable>();
+        }
     }
 
     /// <summary>
@@ -90,9 +119,58 @@ public static class ConfigService
     /// <param name="variables">需要保存的变量列表</param>
     public static void SaveVariables(List<ModbusVariable> variables)
     {
-        // 序列化为格式化的 JSON
         var json = JsonConvert.SerializeObject(variables, Formatting.Indented);
-        // 以 UTF-8 编码写入文件
-        File.WriteAllText(VariablesPath, json, System.Text.Encoding.UTF8);
+        WriteAllTextAtomically(VariablesPath, json);
+    }
+
+    private static bool IsConfigReadException(Exception ex)
+    {
+        return ex is JsonException or IOException or UnauthorizedAccessException or System.Security.SecurityException;
+    }
+
+    private static void WriteAllTextAtomically(string path, string content)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var tempPath = $"{path}.{Guid.NewGuid():N}.tmp";
+        File.WriteAllText(tempPath, content, System.Text.Encoding.UTF8);
+
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Replace(tempPath, path, null);
+            }
+            else
+            {
+                File.Move(tempPath, path);
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+
+    private static void BackupBadConfig(string path)
+    {
+        if (!File.Exists(path)) return;
+
+        try
+        {
+            var backupPath = $"{path}.bad-{DateTime.Now:yyyyMMddHHmmssfff}";
+            File.Move(path, backupPath);
+        }
+        catch
+        {
+            // 配置已损坏时，备份失败也不能阻止应用使用默认值启动。
+        }
     }
 }
