@@ -4,6 +4,7 @@
 // 设计: 这是用户与 Modbus 设备交互的核心界面
 // ============================================================
 
+using System.ComponentModel;
 using ModbusSCADA.Helpers;
 using ModbusSCADA.Models;
 using ModbusSCADA.Resources;
@@ -83,6 +84,11 @@ public partial class MainForm : Form
         // 订阅服务器异常断开事件 — 一次绑定终生有效,服务对象生命周期与窗口一致。
         // 事件已由 ModbusService 切到 UI 线程,这里直接更新控件即可。
         _modbusService.ConnectionLost += OnModbusConnectionLost;
+
+        // 订阅变量列表变更 — 后台轮询通过 BindingList.ResetItem 刷新某行后,
+        // DataGridView 会自动重绘该行,但底部"当前值"面板不会自动跟进。
+        // 这里把 ListChanged 接到面板刷新上,选中行的值变化即时同步显示。
+        _variableManager.Variables.ListChanged += OnVariablesListChanged;
     }
 
     // ================================================================
@@ -543,6 +549,24 @@ public partial class MainForm : Form
             SetVariableEditCommandsEnabled(true);
             DgvVariables_SelectionChanged(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>
+    /// 变量列表变更 — 主要响应轮询更新值后的 ItemChanged,
+    /// 当变化发生在底部面板正在显示的那一行时,同步刷新"当前值"。
+    /// </summary>
+    /// <remarks>
+    /// 不能依赖 SelectionChanged 来刷新数值: SelectionChanged 只在用户点击其他行时才触发,
+    /// 用户停留在同一行不动时,即便数据变了底部面板也不会重新计算。
+    /// </remarks>
+    private void OnVariablesListChanged(object? sender, ListChangedEventArgs e)
+    {
+        // 只关心"某行内容变了"这一种,新增/删除/重置由 SelectionChanged 自然处理
+        if (e.ListChangedType != ListChangedType.ItemChanged) return;
+        if (_dgvVariables.SelectedRows.Count == 0) return;
+        if (_dgvVariables.SelectedRows[0].Index != e.NewIndex) return;
+
+        UpdateSelectedVariableInfo();
     }
 
     /// <summary>

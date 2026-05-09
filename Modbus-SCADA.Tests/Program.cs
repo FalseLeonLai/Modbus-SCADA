@@ -28,6 +28,7 @@ internal static class Program
             ("VariableConfigForm_AppliesValidationAndReadOnlyWriteRules", VariableConfigForm_AppliesValidationAndReadOnlyWriteRules),
             ("ResourceFiles_HaveMatchingKeysAndSupportedLanguages", ResourceFiles_HaveMatchingKeysAndSupportedLanguages),
             ("MainForm_VariableEditCommandsCanBeDisabledWhileConnected", MainForm_VariableEditCommandsCanBeDisabledWhileConnected),
+            ("MainForm_RefreshesSelectedInfoWhenSelectedVariableValueUpdates", MainForm_RefreshesSelectedInfoWhenSelectedVariableValueUpdates),
             ("ModbusService_AsyncStopAndDisconnectAreAvailableAndIdempotent", ModbusService_AsyncStopAndDisconnectAreAvailableAndIdempotent),
             ("ModbusService_ConnectAsyncCompletesWithinConfiguredTimeout", ModbusService_ConnectAsyncCompletesWithinConfiguredTimeout),
             ("ModbusService_SerializesConcurrentModbusReadWriteCalls", ModbusService_SerializesConcurrentModbusReadWriteCalls),
@@ -189,6 +190,52 @@ internal static class Program
         TestAssert.True(GetToolStripButton(form, "_btnEdit").Enabled, "断开后应恢复编辑。");
         TestAssert.True(GetToolStripButton(form, "_btnDelete").Enabled, "断开后应恢复删除。");
         TestAssert.True(GetToolStripButton(form, "_btnImport").Enabled, "断开后应恢复导入。");
+        return Task.CompletedTask;
+    }
+
+    private static Task MainForm_RefreshesSelectedInfoWhenSelectedVariableValueUpdates()
+    {
+        using var scope = new ConfigDirectoryScope();
+        using var form = new MainForm();
+
+        // 强制创建底层 Win32 Handle, 否则 BindingList → DataGridView 的行同步不会触发
+        var createControl = typeof(Control).GetMethod(
+            "CreateControl",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            null, new Type[] { typeof(bool) }, null);
+        TestAssert.NotNull(createControl, "Control.CreateControl(bool) 应可反射访问。");
+        createControl!.Invoke(form, new object[] { false });
+
+        var manager = (VariableManager)GetPrivateField(form, "_variableManager");
+        var dgv = (DataGridView)GetPrivateField(form, "_dgvVariables");
+        var lblInfo = (Label)GetPrivateField(form, "_lblSelectedInfo");
+
+        manager.Add(new ModbusVariable
+        {
+            Name = "B1",
+            Address = 1,
+            DataType = ModbusDataType.Coil,
+            CanWrite = true,
+            PollInterval = 1000
+        });
+
+        TestAssert.True(dgv.Rows.Count > 0, "添加变量后 DataGridView 应同步生成对应行。");
+
+        // 让第一行成为当前选中行
+        dgv.CurrentCell = dgv.Rows[0].Cells[0];
+        dgv.Rows[0].Selected = true;
+        InvokePrivate(form, "DgvVariables_SelectionChanged", null, EventArgs.Empty);
+
+        var beforeText = lblInfo.Text;
+        TestAssert.True(beforeText.Contains("---"),
+            $"初次选中变量时 CurrentValue 仍为 null,底部面板应显示 ---,实际: {beforeText}");
+
+        // 模拟后台轮询写入新值 — 必须触发底部面板刷新, 否则用户看到的是陈旧"---"
+        manager.UpdateValue(0, true, true);
+
+        var afterText = lblInfo.Text;
+        TestAssert.True(afterText.Contains("ON"),
+            $"轮询更新数值后,底部面板必须反映新值 ON,实际: {afterText}");
         return Task.CompletedTask;
     }
 
