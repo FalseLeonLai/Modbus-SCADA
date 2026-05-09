@@ -62,6 +62,17 @@
   <data name="MsgVarAddrRange" xml:space="preserve"><value>地址超出范围（0-65535）</value></data>
   <data name="MsgVarIntervalRange" xml:space="preserve"><value>轮询间隔不能小于 50ms</value></data>
   <data name="MsgCantWriteReadOnly" xml:space="preserve"><value>无法写入此变量（只读变量）</value></data>
+  <data name="MsgImportFail" xml:space="preserve"><value>导入失败</value></data>
+  <data name="MsgExportFail" xml:space="preserve"><value>导出失败</value></data>
+  <data name="MsgInvalidBoolInput" xml:space="preserve"><value>请输入: ON / OFF / 1 / 0 / true / false</value></data>
+  <data name="MsgInvalidUshortInput" xml:space="preserve"><value>请输入 0-65535 之间的整数</value></data>
+  <data name="MsgInvalidIP" xml:space="preserve"><value>IP 地址格式不正确</value></data>
+  <data name="MsgInvalidPort" xml:space="preserve"><value>端口范围应为 1-65535</value></data>
+  <data name="MsgInvalidSlaveId" xml:space="preserve"><value>从站地址范围应为 1-247</value></data>
+  <data name="MsgInvalidTimeout" xml:space="preserve"><value>超时不能小于 100ms</value></data>
+  <data name="MsgInvalidReconnectInterval" xml:space="preserve"><value>重连间隔不能小于 100ms</value></data>
+  <data name="ErrorTitle" xml:space="preserve"><value>错误</value></data>
+  <data name="JsonFileFilter" xml:space="preserve"><value>JSON 文件|*.json|所有文件|*.*</value></data>
   <!-- 数据类型下拉选项 -->
   <data name="DT_Coil" xml:space="preserve"><value>线圈 (Coil)</value></data>
   <data name="DT_DiscreteInput" xml:space="preserve"><value>离散输入 (DI)</value></data>

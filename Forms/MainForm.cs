@@ -493,6 +493,11 @@ public partial class MainForm : Form
                 // 启动后台轮询
                 _modbusService.StartPoll(_variableManager, _settings);
 
+                // 写入面板按钮根据选中变量重新计算可用性 — 用户在连接前可能已经选中了
+                // 一行可写变量, 此时未连接所以面板被禁用; 连接成功后必须重新评估,
+                // 否则即使现在已经联通且变量可写, 写入框/按钮也会一直保持灰态。
+                DgvVariables_SelectionChanged(this, EventArgs.Empty);
+
                 // 状态栏提示
                 ShowInfo(Strings.MsgConnectSuccess);
             }
@@ -748,7 +753,7 @@ public partial class MainForm : Form
         using var dialog = new OpenFileDialog
         {
             Title = Strings.ImportVariables,
-            Filter = "JSON 文件|*.json|所有文件|*.*",
+            Filter = Strings.JsonFileFilter,
             DefaultExt = "json"
         };
         if (dialog.ShowDialog(this) == DialogResult.OK)
@@ -760,14 +765,15 @@ public partial class MainForm : Form
                 if (variables != null)
                 {
                     _variableManager.Variables.Clear();
-                    foreach (var v in variables) _variableManager.Add(v);
+                    // 过滤掉 JSON 中的 null 项,避免 BindingList 含 null 元素后续渲染崩溃
+                    foreach (var v in variables.Where(v => v != null)) _variableManager.Add(v);
                     _variableManager.SaveToFile();
                     ShowInfo(Strings.MsgSaveSuccess);
                 }
             }
             catch (Exception ex)
             {
-                ShowError($"导入失败: {ex.Message}");
+                ShowError($"{Strings.MsgImportFail}: {ex.Message}");
             }
         }
     }
@@ -780,7 +786,7 @@ public partial class MainForm : Form
         using var dialog = new SaveFileDialog
         {
             Title = Strings.ExportVariables,
-            Filter = "JSON 文件|*.json|所有文件|*.*",
+            Filter = Strings.JsonFileFilter,
             DefaultExt = "json",
             FileName = "variables_export.json"
         };
@@ -796,7 +802,7 @@ public partial class MainForm : Form
             }
             catch (Exception ex)
             {
-                ShowError($"导出失败: {ex.Message}");
+                ShowError($"{Strings.MsgExportFail}: {ex.Message}");
             }
         }
     }
@@ -892,7 +898,7 @@ public partial class MainForm : Form
                     }
                     else
                     {
-                        ShowWarning("请输入: ON / OFF / 1 / 0 / true / false");
+                        ShowWarning(Strings.MsgInvalidBoolInput);
                         return;
                     }
                     break;
@@ -910,7 +916,7 @@ public partial class MainForm : Form
                     }
                     else
                     {
-                        ShowWarning("请输入 0-65535 之间的整数");
+                        ShowWarning(Strings.MsgInvalidUshortInput);
                         return;
                     }
                     break;
@@ -1003,13 +1009,11 @@ public partial class MainForm : Form
     }
 
     /// <summary>
-    /// 显示信息提示（状态栏 + 弹窗）
+    /// 显示信息提示
     /// </summary>
     private void ShowInfo(string msg)
     {
-        // 状态栏显示提示 — 由于 WinForms 没有内置状态栏，用 MessageBox 提示
-        // 实际上这里可以用 ToolStripStatusLabel 或 NotifyIcon
-        // 简单起见使用 MessageBox 轻量提示
+        MessageBox.Show(msg, Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     /// <summary>
@@ -1037,8 +1041,10 @@ public partial class MainForm : Form
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        // 断开连接并释放通信资源
-        _modbusService.Dispose();
+        // 必须先 base 调用让订阅者运行 — 它们可能 e.Cancel = true 取消关闭。
+        // 在 e.Cancel 之前 Dispose 会让连接死掉但窗口仍开着,用户陷入"显示已连接但实际不通"的死状态。
         base.OnFormClosing(e);
+        if (e.Cancel) return;
+        _modbusService.Dispose();
     }
 }

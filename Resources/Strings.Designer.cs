@@ -100,6 +100,17 @@ internal static class Strings
     internal static string MsgVarAddrRange => GetString("MsgVarAddrRange");
     internal static string MsgVarIntervalRange => GetString("MsgVarIntervalRange");
     internal static string MsgCantWriteReadOnly => GetString("MsgCantWriteReadOnly");
+    internal static string MsgImportFail => GetString("MsgImportFail");
+    internal static string MsgExportFail => GetString("MsgExportFail");
+    internal static string MsgInvalidBoolInput => GetString("MsgInvalidBoolInput");
+    internal static string MsgInvalidUshortInput => GetString("MsgInvalidUshortInput");
+    internal static string MsgInvalidIP => GetString("MsgInvalidIP");
+    internal static string MsgInvalidPort => GetString("MsgInvalidPort");
+    internal static string MsgInvalidSlaveId => GetString("MsgInvalidSlaveId");
+    internal static string MsgInvalidTimeout => GetString("MsgInvalidTimeout");
+    internal static string MsgInvalidReconnectInterval => GetString("MsgInvalidReconnectInterval");
+    internal static string ErrorTitle => GetString("ErrorTitle");
+    internal static string JsonFileFilter => GetString("JsonFileFilter");
 
     // ---------- 数据类型 ----------
     internal static string DT_Coil => GetString("DT_Coil");
