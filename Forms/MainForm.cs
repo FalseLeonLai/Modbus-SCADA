@@ -79,6 +79,10 @@ public partial class MainForm : Form
         _variableManager.LoadFromFile();
         // 绑定表格数据源
         BindDataGridView();
+
+        // 订阅服务器异常断开事件 — 一次绑定终生有效,服务对象生命周期与窗口一致。
+        // 事件已由 ModbusService 切到 UI 线程,这里直接更新控件即可。
+        _modbusService.ConnectionLost += OnModbusConnectionLost;
     }
 
     // ================================================================
@@ -538,6 +542,39 @@ public partial class MainForm : Form
             _btnDisconnect.Enabled = false;
             SetVariableEditCommandsEnabled(true);
             DgvVariables_SelectionChanged(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>
+    /// 服务器异常断开 — ModbusService 检测到 socket 失活时触发。
+    /// </summary>
+    /// <remarks>
+    /// 事件已由服务侧切回 UI 线程,且 MarkAllDisconnected 已经在服务侧调用过,
+    /// 这里只需要修复顶部状态栏 + 按钮 + 选中信息,然后异步清理服务侧资源。
+    /// </remarks>
+    private async void OnModbusConnectionLost(object? sender, EventArgs e)
+    {
+        // 顶部状态栏 — 否则会一直保持绿色"已连接"误导用户
+        _lblStatusValue.Text = Strings.NotConnected;
+        _lblStatusValue.ForeColor = Color.Red;
+
+        // 按钮恢复到"未连接"语义,允许用户重新连接
+        _btnConnect.Enabled = true;
+        _btnDisconnect.Enabled = false;
+        SetVariableEditCommandsEnabled(true);
+
+        // 写入面板按钮根据选中变量重新计算可用性(选中行的 IsConnected 已被服务侧置 false)
+        DgvVariables_SelectionChanged(this, EventArgs.Empty);
+
+        // 异步释放底层 TCP/Modbus 资源 — 不等待避免阻塞 UI; DisconnectAsync 是幂等的,
+        // 即使后续用户再点"断开"也无副作用。
+        try
+        {
+            await _modbusService.DisconnectAsync();
+        }
+        catch
+        {
+            // 死连接清理过程中的异常对用户无意义,吞掉。状态已在上面恢复。
         }
     }
 

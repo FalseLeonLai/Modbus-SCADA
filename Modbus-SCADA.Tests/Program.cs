@@ -30,7 +30,10 @@ internal static class Program
             ("MainForm_VariableEditCommandsCanBeDisabledWhileConnected", MainForm_VariableEditCommandsCanBeDisabledWhileConnected),
             ("ModbusService_AsyncStopAndDisconnectAreAvailableAndIdempotent", ModbusService_AsyncStopAndDisconnectAreAvailableAndIdempotent),
             ("ModbusService_ConnectAsyncCompletesWithinConfiguredTimeout", ModbusService_ConnectAsyncCompletesWithinConfiguredTimeout),
-            ("ModbusService_SerializesConcurrentModbusReadWriteCalls", ModbusService_SerializesConcurrentModbusReadWriteCalls)
+            ("ModbusService_SerializesConcurrentModbusReadWriteCalls", ModbusService_SerializesConcurrentModbusReadWriteCalls),
+            ("ModbusService_RaisesConnectionLostAndMarksAllVariablesDisconnectedWhenServerCloses", ModbusService_RaisesConnectionLostAndMarksAllVariablesDisconnectedWhenServerCloses),
+            ("ModbusService_RaisesConnectionLostOnlyOnceForMultipleFailedReads", ModbusService_RaisesConnectionLostOnlyOnceForMultipleFailedReads),
+            ("ModbusService_DoesNotRaiseConnectionLostWhenUserInitiatedDisconnect", ModbusService_DoesNotRaiseConnectionLostWhenUserInitiatedDisconnect)
         };
 
         var failed = 0;
@@ -250,6 +253,120 @@ internal static class Program
         listener.Stop();
     }
 
+    private static async Task ModbusService_RaisesConnectionLostAndMarksAllVariablesDisconnectedWhenServerCloses()
+    {
+        using var service = new ModbusService();
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+
+        var client = new TcpClient();
+        var acceptTask = listener.AcceptTcpClientAsync();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        await client.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+        var serverSide = await acceptTask.ConfigureAwait(false);
+
+        var master = ThrowingModbusMasterProxy.Create(new IOException("simulated remote close"));
+        SetPrivateField(service, "_tcpClient", client);
+        SetPrivateField(service, "_master", master);
+
+        var manager = new VariableManager();
+        manager.Add(new ModbusVariable
+        {
+            Name = "v1", Address = 0,
+            DataType = ModbusDataType.HoldingRegister, PollInterval = 50,
+            CurrentValue = (ushort)10, IsConnected = true
+        });
+        manager.Add(new ModbusVariable
+        {
+            Name = "v2", Address = 1,
+            DataType = ModbusDataType.HoldingRegister, PollInterval = 50,
+            CurrentValue = (ushort)20, IsConnected = true
+        });
+        manager.Add(new ModbusVariable
+        {
+            Name = "v3", Address = 2,
+            DataType = ModbusDataType.HoldingRegister, PollInterval = 50,
+            CurrentValue = (ushort)30, IsConnected = true
+        });
+        SetPrivateField(service, "_variableManager", manager);
+
+        var fired = 0;
+        service.ConnectionLost += (s, e) => Interlocked.Increment(ref fired);
+
+        // 服务器主动关闭连接 — 模拟 PLC/服务端拔线、宕机或重启场景。
+        serverSide.Close();
+        listener.Stop();
+        await Task.Delay(150).ConfigureAwait(false);
+
+        var result = await service.ReadHoldingRegisterAsync(1, 10).ConfigureAwait(false);
+        TestAssert.Null(result, "服务器关闭后读取应失败返回 null。");
+
+        TestAssert.Equal(1, fired, "ConnectionLost 事件应在检测到 socket 失活后触发。");
+        foreach (var v in manager.Variables)
+        {
+            TestAssert.False(v.IsConnected, $"{v.Name} 在连接丢失后应被标记为通信异常。");
+            TestAssert.Null(v.CurrentValue, $"{v.Name} 在连接丢失后应清空数值,避免显示陈旧数据。");
+        }
+    }
+
+    private static async Task ModbusService_RaisesConnectionLostOnlyOnceForMultipleFailedReads()
+    {
+        using var service = new ModbusService();
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+
+        var client = new TcpClient();
+        var acceptTask = listener.AcceptTcpClientAsync();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        await client.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+        var serverSide = await acceptTask.ConfigureAwait(false);
+
+        var master = ThrowingModbusMasterProxy.Create(new IOException("simulated remote close"));
+        SetPrivateField(service, "_tcpClient", client);
+        SetPrivateField(service, "_master", master);
+
+        var fired = 0;
+        service.ConnectionLost += (s, e) => Interlocked.Increment(ref fired);
+
+        serverSide.Close();
+        listener.Stop();
+        await Task.Delay(150).ConfigureAwait(false);
+
+        for (int i = 0; i < 5; i++)
+        {
+            await service.ReadHoldingRegisterAsync(1, (ushort)i).ConfigureAwait(false);
+        }
+
+        TestAssert.Equal(1, fired, "多次失败读取也只应触发一次 ConnectionLost,避免事件风暴。");
+    }
+
+    private static async Task ModbusService_DoesNotRaiseConnectionLostWhenUserInitiatedDisconnect()
+    {
+        using var service = new ModbusService();
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+
+        var client = new TcpClient();
+        var acceptTask = listener.AcceptTcpClientAsync();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        await client.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+        var serverSide = await acceptTask.ConfigureAwait(false);
+
+        SetPrivateField(service, "_tcpClient", client);
+        // 这里不需要装载 master, 用户主动断开不会触发 IO
+
+        var fired = 0;
+        service.ConnectionLost += (s, e) => Interlocked.Increment(ref fired);
+
+        await service.DisconnectAsync().WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+        await Task.Delay(50).ConfigureAwait(false);
+
+        TestAssert.Equal(0, fired, "用户主动断开不应误触发 ConnectionLost,该事件只表示服务器异常断线。");
+
+        serverSide.Close();
+        listener.Stop();
+    }
+
     private static ToolStripButton GetToolStripButton(MainForm form, string fieldName)
     {
         var field = typeof(MainForm).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -392,6 +509,33 @@ internal class CountingModbusMasterProxy : DispatchProxy
             if (active <= current) return;
             if (Interlocked.CompareExchange(ref _maxConcurrent, active, current) == current) return;
         }
+    }
+}
+
+internal class ThrowingModbusMasterProxy : DispatchProxy
+{
+    public Exception ToThrow { get; private set; } = new IOException("default test exception");
+
+    public static IModbusMaster Create(Exception exception)
+    {
+        var master = DispatchProxy.Create<IModbusMaster, ThrowingModbusMasterProxy>();
+        ((ThrowingModbusMasterProxy)(object)master).ToThrow = exception;
+        return master;
+    }
+
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+    {
+        return targetMethod?.Name switch
+        {
+            "ReadHoldingRegistersAsync" => Task.FromException<ushort[]>(ToThrow),
+            "ReadInputRegistersAsync" => Task.FromException<ushort[]>(ToThrow),
+            "ReadCoilsAsync" => Task.FromException<bool[]>(ToThrow),
+            "ReadInputsAsync" => Task.FromException<bool[]>(ToThrow),
+            "WriteSingleCoilAsync" => Task.FromException(ToThrow),
+            "WriteSingleRegisterAsync" => Task.FromException(ToThrow),
+            "get_Transport" => null,
+            _ => throw new NotSupportedException($"测试代理未实现 {targetMethod?.Name}。")
+        };
     }
 }
 
