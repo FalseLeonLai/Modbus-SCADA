@@ -209,7 +209,7 @@ public partial class ConnectionSettingsForm : Form
         // 验证 IP 地址格式
         if (!System.Net.IPAddress.TryParse(_txtIP.Text, out var ip))
         {
-            MessageBox.Show("IP 地址格式不正确", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(Strings.MsgInvalidIP, Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _txtIP.Focus();
             return;
         }
@@ -218,7 +218,7 @@ public partial class ConnectionSettingsForm : Form
         // 验证端口号（1-65535）
         if (!int.TryParse(_txtPort.Text, out int port) || port < 1 || port > 65535)
         {
-            MessageBox.Show("端口范围应为 1-65535", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(Strings.MsgInvalidPort, Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _txtPort.Focus();
             return;
         }
@@ -227,7 +227,7 @@ public partial class ConnectionSettingsForm : Form
         // 验证从站地址（1-247）
         if (!byte.TryParse(_txtSlaveId.Text, out byte slaveId) || slaveId < 1 || slaveId > 247)
         {
-            MessageBox.Show("从站地址范围应为 1-247", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(Strings.MsgInvalidSlaveId, Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _txtSlaveId.Focus();
             return;
         }
@@ -236,7 +236,7 @@ public partial class ConnectionSettingsForm : Form
         // 验证超时
         if (!int.TryParse(_txtTimeout.Text, out int timeout) || timeout < 100)
         {
-            MessageBox.Show("超时不能小于 100ms", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(Strings.MsgInvalidTimeout, Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _txtTimeout.Focus();
             return;
         }
@@ -245,7 +245,7 @@ public partial class ConnectionSettingsForm : Form
         // 验证重连间隔
         if (!int.TryParse(_txtReconnectInterval.Text, out int reconnect) || reconnect < 100)
         {
-            MessageBox.Show("重连间隔不能小于 100ms", "错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(Strings.MsgInvalidReconnectInterval, Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _txtReconnectInterval.Focus();
             return;
         }

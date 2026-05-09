@@ -55,6 +55,17 @@
   <data name="MsgVarAddrRange" xml:space="preserve"><value>Address out of range (0-65535).</value></data>
   <data name="MsgVarIntervalRange" xml:space="preserve"><value>Polling interval cannot be less than 50ms.</value></data>
   <data name="MsgCantWriteReadOnly" xml:space="preserve"><value>Cannot write to this variable (read-only).</value></data>
+  <data name="MsgImportFail" xml:space="preserve"><value>Import failed</value></data>
+  <data name="MsgExportFail" xml:space="preserve"><value>Export failed</value></data>
+  <data name="MsgInvalidBoolInput" xml:space="preserve"><value>Enter: ON / OFF / 1 / 0 / true / false</value></data>
+  <data name="MsgInvalidUshortInput" xml:space="preserve"><value>Enter an integer between 0 and 65535</value></data>
+  <data name="MsgInvalidIP" xml:space="preserve"><value>Invalid IP address format</value></data>
+  <data name="MsgInvalidPort" xml:space="preserve"><value>Port must be between 1 and 65535</value></data>
+  <data name="MsgInvalidSlaveId" xml:space="preserve"><value>Slave ID must be between 1 and 247</value></data>
+  <data name="MsgInvalidTimeout" xml:space="preserve"><value>Timeout must be at least 100ms</value></data>
+  <data name="MsgInvalidReconnectInterval" xml:space="preserve"><value>Reconnect interval must be at least 100ms</value></data>
+  <data name="ErrorTitle" xml:space="preserve"><value>Error</value></data>
+  <data name="JsonFileFilter" xml:space="preserve"><value>JSON Files|*.json|All Files|*.*</value></data>
   <data name="DT_Coil" xml:space="preserve"><value>Coil</value></data>
   <data name="DT_DiscreteInput" xml:space="preserve"><value>Discrete Input</value></data>
   <data name="DT_InputRegister" xml:space="preserve"><value>Input Register</value></data>

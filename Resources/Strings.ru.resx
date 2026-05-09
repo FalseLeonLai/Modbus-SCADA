@@ -55,6 +55,17 @@
   <data name="MsgVarAddrRange" xml:space="preserve"><value>Адрес вне диапазона (0-65535).</value></data>
   <data name="MsgVarIntervalRange" xml:space="preserve"><value>Интервал не может быть менее 50мс.</value></data>
   <data name="MsgCantWriteReadOnly" xml:space="preserve"><value>Нельзя записать (только чтение).</value></data>
+  <data name="MsgImportFail" xml:space="preserve"><value>Ошибка импорта</value></data>
+  <data name="MsgExportFail" xml:space="preserve"><value>Ошибка экспорта</value></data>
+  <data name="MsgInvalidBoolInput" xml:space="preserve"><value>Введите: ON / OFF / 1 / 0 / true / false</value></data>
+  <data name="MsgInvalidUshortInput" xml:space="preserve"><value>Введите целое число от 0 до 65535</value></data>
+  <data name="MsgInvalidIP" xml:space="preserve"><value>Неверный формат IP-адреса</value></data>
+  <data name="MsgInvalidPort" xml:space="preserve"><value>Порт должен быть от 1 до 65535</value></data>
+  <data name="MsgInvalidSlaveId" xml:space="preserve"><value>Slave ID должен быть от 1 до 247</value></data>
+  <data name="MsgInvalidTimeout" xml:space="preserve"><value>Таймаут не менее 100мс</value></data>
+  <data name="MsgInvalidReconnectInterval" xml:space="preserve"><value>Интервал переподключения не менее 100мс</value></data>
+  <data name="ErrorTitle" xml:space="preserve"><value>Ошибка</value></data>
+  <data name="JsonFileFilter" xml:space="preserve"><value>JSON файлы|*.json|Все файлы|*.*</value></data>
   <data name="DT_Coil" xml:space="preserve"><value>Coil</value></data>
   <data name="DT_DiscreteInput" xml:space="preserve"><value>Discrete Input</value></data>
   <data name="DT_InputRegister" xml:space="preserve"><value>Input Register</value></data>
